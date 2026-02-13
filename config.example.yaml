@@ -1,0 +1,54 @@
+# parascan target configuration
+#
+# This file is optional. For basic scans, just run:
+#   parascan scan https://example.com
+#
+# Use this file for complex setups with multiple auth methods,
+# custom scope rules, or per-endpoint overrides.
+
+target:
+  url: https://example.com
+  # openapi spec file for automatic endpoint discovery
+  # openapi: ./swagger.yaml
+
+auth:
+  # uncomment the method you need:
+  # bearer: "eyJhbGciOiJIUzI1NiIs..."
+  # cookie: "session=abc123; csrf=xyz"
+  # api_key:
+  #   header: "X-API-Key"
+  #   value: "your-api-key-here"
+  # basic:
+  #   username: "admin"
+  #   password: "password"
+
+scope:
+  # allowed domains (target domain is always included)
+  allowed_domains:
+    - example.com
+  # allowed path prefixes (empty = all paths)
+  allowed_paths: []
+  # paths to exclude from scanning
+  excluded_paths:
+    - /logout
+    - /admin/delete
+
+scan:
+  # which modules to run (empty = all)
+  modules: []
+  # modules to skip
+  exclude_modules: []
+  # max concurrent requests
+  concurrency: 10
+  # max requests per second
+  rate_limit: 10
+
+proxy:
+  # route traffic through an intercepting proxy
+  # url: http://127.0.0.1:8080
+
+output:
+  # report format
+  format: json
+  # output directory for reports
+  # directory: ./reports

