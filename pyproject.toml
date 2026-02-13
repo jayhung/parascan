@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "parascan"
+version = "0.1.0"
+description = "A modular web application penetration testing tool for REST and GraphQL APIs"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "parascan contributors"},
+]
+keywords = ["security", "penetration-testing", "vulnerability-scanner", "api-testing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+]
+dependencies = [
+    "httpx[http2]>=0.27.0",
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "jinja2>=3.1.0",
+    "sqlalchemy>=2.0.0",
+    "aiosqlite>=0.20.0",
+    "pyyaml>=6.0",
+    "beautifulsoup4>=4.12.0",
+    "pyjwt>=2.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.5.0",
+]
+
+[project.scripts]
+parascan = "parascan.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/parascan/parascan"
+Repository = "https://github.com/parascan/parascan"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+parascan = ["payloads/*.yaml", "wordlists/*.txt", "web/templates/*.html"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

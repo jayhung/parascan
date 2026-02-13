@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>parascan — Scan #{{ scan.id }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a; color: #e2e8f0; line-height: 1.6;
+        }
+        .container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        header {
+            border-bottom: 1px solid #1e293b; padding-bottom: 1rem; margin-bottom: 2rem;
+        }
+        h1 { color: #f8fafc; font-size: 1.5rem; margin-bottom: 0.25rem; }
+        h2 { color: #94a3b8; margin: 2rem 0 1rem; font-size: 1.1rem;
+             border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
+        h4 { margin: 0.5rem 0; color: #94a3b8; font-size: 0.9rem; }
+        a { color: #60a5fa; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .meta { color: #64748b; font-size: 0.9rem; }
+        .breadcrumb { color: #64748b; margin-bottom: 1rem; font-size: 0.85rem; }
+        .summary { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; }
+        .badge { padding: 0.25rem 0.75rem; border-radius: 9999px; color: white;
+                 font-size: 0.85rem; font-weight: 600; }
+        .sev-critical { background: #dc2626; }
+        .sev-high { background: #ea580c; }
+        .sev-medium { background: #ca8a04; }
+        .sev-low { background: #2563eb; }
+        .sev-info { background: #6b7280; }
+        .status { padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem;
+                  font-weight: 600; text-transform: uppercase; }
+        .status-completed { background: #166534; color: #4ade80; }
+        .status-running { background: #854d0e; color: #facc15; }
+        .status-interrupted { background: #7c2d12; color: #fb923c; }
+        .status-failed { background: #7f1d1d; color: #f87171; }
+        .fingerprint { background: #1e293b; border-radius: 4px; padding: 0.75rem;
+                       font-family: monospace; font-size: 0.8rem; color: #94a3b8;
+                       white-space: pre-wrap; margin: 0.5rem 0; }
+        .module-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.5rem 0; }
+        .chip { background: #1e293b; padding: 0.25rem 0.6rem; border-radius: 9999px;
+                font-size: 0.8rem; color: #94a3b8; }
+        .finding {
+            background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+            padding: 1rem; margin-bottom: 0.75rem;
+        }
+        .finding-header {
+            display: flex; align-items: center; gap: 0.75rem;
+            margin-bottom: 0.5rem; flex-wrap: wrap;
+        }
+        .severity { padding: 0.15rem 0.5rem; border-radius: 4px; color: white;
+                    font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        .module-tag { color: #64748b; font-size: 0.8rem; }
+        p { color: #cbd5e1; font-size: 0.9rem; }
+        pre { background: #0f172a; border: 1px solid #334155; border-radius: 4px;
+              padding: 0.75rem; overflow-x: auto; font-size: 0.75rem; color: #94a3b8;
+              margin: 0.5rem 0; white-space: pre-wrap; word-break: break-all;
+              max-height: 300px; overflow-y: auto; }
+        details { margin: 0.5rem 0; }
+        summary { cursor: pointer; color: #60a5fa; font-size: 0.85rem; }
+        .export-links { margin-top: 1rem; }
+        .export-links a {
+            background: #1e293b; padding: 0.4rem 0.8rem; border-radius: 4px;
+            font-size: 0.85rem; margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="/">← Dashboard</a>
+        </div>
+
+        <header>
+            <h1>Scan #{{ scan.id }} — {{ scan.target_url }}</h1>
+            <p class="meta">
+                <span class="status status-{{ scan.status }}">{{ scan.status }}</span>
+                &nbsp; {{ scan.scanned_endpoints }}/{{ scan.total_endpoints }} endpoints
+                &nbsp; · &nbsp; {{ total }} finding(s)
+                &nbsp; · &nbsp; {{ scan.started_at.strftime('%Y-%m-%d %H:%M') if scan.started_at else '—' }}
+            </p>
+        </header>
+
+        <div class="summary">
+            {% for sev in ['critical', 'high', 'medium', 'low', 'info'] %}
+                {% set count = grouped[sev]|length %}
+                {% if count > 0 %}
+                    <span class="badge sev-{{ sev }}">{{ sev|upper }}: {{ count }}</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        {% if by_module %}
+        <div class="module-chips">
+            {% for module, count in by_module.items() %}
+                <span class="chip">{{ module }}: {{ count }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if scan.fingerprint %}
+        <h2>Target Fingerprint</h2>
+        <div class="fingerprint">{{ scan.fingerprint }}</div>
+        {% endif %}
+
+        <div class="export-links">
+            <a href="/scan/{{ scan.id }}/json">Export JSON</a>
+            <a href="/scan/{{ scan.id }}/report">Full Report</a>
+        </div>
+
+        {% for sev in ['critical', 'high', 'medium', 'low', 'info'] %}
+            {% set sev_findings = grouped[sev] %}
+            {% if sev_findings %}
+            <h2>{{ sev|upper }} ({{ sev_findings|length }})</h2>
+            {% for f in sev_findings %}
+            <div class="finding">
+                <div class="finding-header">
+                    <span class="severity sev-{{ f.severity }}">{{ f.severity }}</span>
+                    <span class="module-tag">{{ f.module }}</span>
+                    <strong>{{ f.title }}</strong>
+                </div>
+                <p>{{ f.description }}</p>
+                {% if f.evidence %}
+                    <h4>Evidence</h4>
+                    <pre>{{ f.evidence }}</pre>
+                {% endif %}
+                {% if f.request_data %}
+                    <details>
+                        <summary>Request</summary>
+                        <pre>{{ f.request_data }}</pre>
+                    </details>
+                {% endif %}
+                {% if f.response_data %}
+                    <details>
+                        <summary>Response</summary>
+                        <pre>{{ f.response_data }}</pre>
+                    </details>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% endif %}
+        {% endfor %}
+
+        {% if total == 0 %}
+        <div style="text-align:center; padding:3rem; color:#64748b;">
+            <p>No vulnerabilities detected in this scan.</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

