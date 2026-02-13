@@ -11,6 +11,8 @@ A modular web application penetration testing tool for REST and GraphQL APIs.
 # install
 git clone https://github.com/parascan/parascan.git
 cd parascan
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
 
 # scan a target
@@ -27,6 +29,12 @@ parascan dashboard
 ```bash
 git clone https://github.com/parascan/parascan.git
 cd parascan
+
+# create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # on Windows: .venv\Scripts\activate
+
+# install in development mode
 pip install -e .
 ```
 
