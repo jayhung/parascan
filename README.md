@@ -1,4 +1,4 @@
-# parascan
+# Paranoid Scanner (parascan)
 
 A modular web application penetration testing tool for REST and GraphQL APIs.
 
