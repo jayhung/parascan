@@ -11,6 +11,22 @@ import httpx
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
+REMEDIATION_BATCH = (
+    "Limit or disable GraphQL query batching. If batching is needed, enforce "
+    "a maximum number of operations per request (e.g., 5). Apply rate limiting "
+    "per operation rather than per HTTP request."
+)
+
+REMEDIATION_NESTED = (
+    "Implement query depth and complexity limits on your GraphQL server. "
+    "In Apollo Server: use graphql-depth-limit and graphql-query-complexity "
+    "plugins. Set a maximum query depth (e.g., 10) and reject queries that "
+    "exceed it. Add query cost analysis to prevent resource exhaustion."
+)
+
+SOC2 = "CC7.2"
+
+
 class GraphQLBatchScanner(BaseScanner):
     module_name = "graphql-batch"
     description = "GraphQL batch query and nested query DoS detection"
@@ -77,6 +93,8 @@ class GraphQLBatchScanner(BaseScanner):
                 evidence=f"Batch of 5 queries returned {len(data)} results",
                 request_data=json.dumps(batch)[:500],
                 response_data=self._format_response(resp),
+                remediation=REMEDIATION_BATCH,
+                soc2_criteria=SOC2,
             )
 
         return None
@@ -116,6 +134,8 @@ class GraphQLBatchScanner(BaseScanner):
                 evidence=f"Nested query response time: {elapsed:.1f}s",
                 request_data=f"Query depth: {depth}",
                 response_data=self._format_response(resp),
+                remediation=REMEDIATION_NESTED,
+                soc2_criteria=SOC2,
             )
 
         # also check if the server rejected the query (good behavior)

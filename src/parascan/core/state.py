@@ -98,6 +98,9 @@ async def save_finding(
     evidence: str | None = None,
     request_data: str | None = None,
     response_data: str | None = None,
+    remediation: str | None = None,
+    soc2_criteria: str | None = None,
+    retest_status: str | None = None,
 ) -> int:
     """save a finding and return its id."""
     session = await get_session()
@@ -112,6 +115,9 @@ async def save_finding(
             evidence=evidence,
             request_data=request_data,
             response_data=response_data,
+            remediation=remediation,
+            soc2_criteria=soc2_criteria,
+            retest_status=retest_status,
         )
         session.add(finding)
         await session.flush()

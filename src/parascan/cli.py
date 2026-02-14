@@ -102,6 +102,8 @@ def scan(
     ),
     ci: bool = typer.Option(False, "--ci", help="CI/CD mode: JSON output, exit 1 on critical/high"),
     resume: bool = typer.Option(False, "--resume", help="Resume the most recent interrupted scan"),
+    retest: Optional[int] = typer.Option(None, "--retest", help="Re-run scan against a previous scan ID to verify fixes"),
+    test_unauth: bool = typer.Option(False, "--test-unauth", help="Test endpoints without auth to detect broken access control"),
 ) -> None:
     """Run a penetration test against a web application."""
     if resume:
@@ -121,6 +123,8 @@ def scan(
             openapi=openapi,
             ci=ci,
             resume=True,
+            retest=None,
+            test_unauth=False,
         ))
         return
 
@@ -156,6 +160,8 @@ def scan(
         openapi=openapi,
         ci=ci,
         resume=False,
+        retest=retest,
+        test_unauth=test_unauth,
     ))
 
 
@@ -174,10 +180,12 @@ async def _run_scan_async(
     openapi: str | None,
     ci: bool,
     resume: bool,
+    retest: int | None = None,
+    test_unauth: bool = False,
 ) -> None:
     """async scan runner."""
     from parascan.core.config import build_config_from_cli, load_config
-    from parascan.core.engine import run_scan
+    from parascan.core.engine import run_scan, run_retest
     from parascan.core.reporter import generate_json_report, has_critical_or_high
     from parascan.core.state import get_findings_for_scan
 
@@ -211,7 +219,13 @@ async def _run_scan_async(
             openapi=openapi,
         )
 
-    scan_id = await run_scan(target_config, resume=resume)
+    if retest:
+        scan_id = await run_retest(target_config, retest_scan_id=retest)
+    elif test_unauth:
+        from parascan.core.engine import run_auth_comparison
+        scan_id = await run_auth_comparison(target_config)
+    else:
+        scan_id = await run_scan(target_config, resume=resume)
 
     if ci and scan_id:
         report = await generate_json_report(scan_id)

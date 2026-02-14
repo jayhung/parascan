@@ -14,6 +14,23 @@ import yaml
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
+REMEDIATION_ALG_NONE = (
+    "Enforce a specific algorithm when verifying JWT tokens. Never trust the 'alg' "
+    "header from the token itself. In your verification code, explicitly set the "
+    "expected algorithm (e.g., algorithms=['HS256'] in PyJWT, or algorithm: 'HS256' "
+    "in jsonwebtoken). Reject tokens with 'none' algorithm."
+)
+
+REMEDIATION_WEAK_SECRET = (
+    "Use a cryptographically strong random secret for signing JWTs (at least 256 bits). "
+    "Generate it with a CSPRNG (e.g., openssl rand -base64 32). Consider switching to "
+    "asymmetric algorithms (RS256/ES256) where only the server holds the private key. "
+    "Rotate secrets periodically."
+)
+
+SOC2 = "CC6.1"
+
+
 class JWTScanner(BaseScanner):
     module_name = "jwt"
     description = "JWT vulnerability detection (alg:none, weak secrets, key confusion)"
@@ -102,6 +119,8 @@ class JWTScanner(BaseScanner):
                     evidence=f"Forged token accepted: alg={alg}, status={resp.status_code}",
                     request_data=f"Authorization: Bearer {fake_token[:50]}...",
                     response_data=self._format_response(resp),
+                    remediation=REMEDIATION_ALG_NONE,
+                    soc2_criteria=SOC2,
                 )
 
         return None
@@ -144,6 +163,8 @@ class JWTScanner(BaseScanner):
                         f"An attacker can forge tokens with arbitrary claims."
                     ),
                     evidence=f"Secret found: '{secret}' (algorithm: {alg})",
+                    remediation=REMEDIATION_WEAK_SECRET,
+                    soc2_criteria=SOC2,
                 )
 
         return None

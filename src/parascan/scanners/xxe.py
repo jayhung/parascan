@@ -10,6 +10,17 @@ import yaml
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
+REMEDIATION = (
+    "Disable external entity processing in your XML parser. In Python: "
+    "use defusedxml instead of xml.etree. In Java: set "
+    "XMLConstants.FEATURE_SECURE_PROCESSING and disable DOCTYPE declarations. "
+    "In PHP: use libxml_disable_entity_loader(true). Consider using JSON "
+    "instead of XML where possible."
+)
+
+SOC2 = "CC6.8"
+
+
 class XXEScanner(BaseScanner):
     module_name = "xxe"
     description = "XML external entity injection detection"
@@ -80,6 +91,8 @@ class XXEScanner(BaseScanner):
                             headers={"Content-Type": "application/xml"},
                         ),
                         response_data=self._format_response(resp),
+                        remediation=REMEDIATION,
+                        soc2_criteria=SOC2,
                     ))
                     return results  # critical, stop
 
@@ -111,6 +124,8 @@ class XXEScanner(BaseScanner):
                             headers={"Content-Type": "application/xml"},
                         ),
                         response_data=self._format_response(resp),
+                        remediation=REMEDIATION,
+                        soc2_criteria=SOC2,
                     ))
                     return results
 

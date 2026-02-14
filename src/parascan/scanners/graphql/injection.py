@@ -10,6 +10,16 @@ import httpx
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
+REMEDIATION = (
+    "Validate and sanitize all GraphQL variables server-side. Use parameterized "
+    "resolvers that never concatenate user input into database queries. Apply "
+    "input validation on variable types. Use an ORM or query builder for all "
+    "database access within resolvers."
+)
+
+SOC2 = "CC6.8"
+
+
 class GraphQLInjectionScanner(BaseScanner):
     module_name = "graphql-injection"
     description = "GraphQL query injection and variable manipulation"
@@ -83,6 +93,8 @@ class GraphQLInjectionScanner(BaseScanner):
                         evidence=f"Error signature: {sig}",
                         request_data=body[:500],
                         response_data=self._format_response(resp),
+                        remediation=REMEDIATION,
+                        soc2_criteria=SOC2,
                     ))
                     return results  # one finding is enough
 

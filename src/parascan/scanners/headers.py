@@ -13,32 +13,76 @@ SECURITY_HEADERS = {
     "Strict-Transport-Security": {
         "severity": "medium",
         "description": "HSTS header is missing. The site does not enforce HTTPS connections.",
+        "remediation": (
+            "Add the Strict-Transport-Security header to all responses: "
+            "'Strict-Transport-Security: max-age=31536000; includeSubDomains; preload'. "
+            "Ensure all resources are served over HTTPS before enabling."
+        ),
+        "soc2": "CC6.7",
     },
     "Content-Security-Policy": {
         "severity": "medium",
         "description": "CSP header is missing. The site has no protection against XSS and data injection attacks.",
+        "remediation": (
+            "Add a Content-Security-Policy header. Start with a report-only policy to "
+            "identify violations: \"Content-Security-Policy-Report-Only: default-src 'self'\". "
+            "Then tighten the policy to restrict script sources and disable inline scripts."
+        ),
+        "soc2": "CC6.8",
     },
     "X-Content-Type-Options": {
         "severity": "low",
         "description": "X-Content-Type-Options header is missing. Browser may MIME-sniff responses.",
+        "remediation": "Add 'X-Content-Type-Options: nosniff' to all responses.",
+        "soc2": "CC7.1",
     },
     "X-Frame-Options": {
         "severity": "medium",
         "description": "X-Frame-Options header is missing. The site may be vulnerable to clickjacking.",
+        "remediation": (
+            "Add 'X-Frame-Options: DENY' (or 'SAMEORIGIN' if framing from the same origin "
+            "is needed). Also set 'frame-ancestors' in your Content-Security-Policy."
+        ),
+        "soc2": "CC6.8",
     },
     "X-XSS-Protection": {
         "severity": "low",
         "description": "X-XSS-Protection header is missing (legacy, but still useful for older browsers).",
+        "remediation": "Add 'X-XSS-Protection: 1; mode=block' for legacy browser protection.",
+        "soc2": "CC6.8",
     },
     "Referrer-Policy": {
         "severity": "low",
         "description": "Referrer-Policy header is missing. Referrer information may leak to third parties.",
+        "remediation": (
+            "Add 'Referrer-Policy: strict-origin-when-cross-origin' or "
+            "'Referrer-Policy: no-referrer' to prevent leaking URL paths to third parties."
+        ),
+        "soc2": "CC7.1",
     },
     "Permissions-Policy": {
         "severity": "low",
         "description": "Permissions-Policy header is missing. Browser features are not restricted.",
+        "remediation": (
+            "Add a Permissions-Policy header to restrict unnecessary browser features: "
+            "'Permissions-Policy: camera=(), microphone=(), geolocation=()'."
+        ),
+        "soc2": "CC7.1",
     },
 }
+
+CORS_REMEDIATION = (
+    "Restrict Access-Control-Allow-Origin to specific trusted domains instead of "
+    "using '*' or reflecting the Origin header. Never combine wildcard or reflected "
+    "origins with Access-Control-Allow-Credentials: true. Validate origins against "
+    "an explicit allowlist on the server."
+)
+
+INFO_REMEDIATION = (
+    "Remove or suppress server version headers in production. Configure your web "
+    "server to omit the Server, X-Powered-By, and framework-specific version headers. "
+    "For nginx: 'server_tokens off;'. For Express: 'app.disable(\"x-powered-by\")'."
+)
 
 
 class SecurityHeadersScanner(BaseScanner):
@@ -66,6 +110,8 @@ class SecurityHeadersScanner(BaseScanner):
                     evidence=f"Header '{header}' not found in response",
                     request_data=self._format_request("GET", url),
                     response_data=self._format_response(resp),
+                    remediation=info.get("remediation"),
+                    soc2_criteria=info.get("soc2"),
                 ))
 
         # check CORS misconfiguration
@@ -104,6 +150,8 @@ class SecurityHeadersScanner(BaseScanner):
                 evidence="Access-Control-Allow-Origin: *",
                 request_data=self._format_request("GET", url, headers={"Origin": evil_origin}),
                 response_data=self._format_response(resp),
+                remediation=CORS_REMEDIATION,
+                soc2_criteria="CC6.6",
             )
 
         if evil_origin in acao:
@@ -121,6 +169,8 @@ class SecurityHeadersScanner(BaseScanner):
                 evidence=f"ACAO: {acao}, ACAC: {acac}",
                 request_data=self._format_request("GET", url, headers={"Origin": evil_origin}),
                 response_data=self._format_response(resp),
+                remediation=CORS_REMEDIATION,
+                soc2_criteria="CC6.6",
             )
 
         return None
@@ -144,6 +194,8 @@ class SecurityHeadersScanner(BaseScanner):
                     title=f"Information disclosure: {header}",
                     description=f"{desc}: {value}",
                     evidence=f"{header}: {value}",
+                    remediation=INFO_REMEDIATION,
+                    soc2_criteria="CC7.1",
                 ))
 
         return results

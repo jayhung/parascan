@@ -10,6 +10,22 @@ import yaml
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
+REMEDIATION_TOKEN = (
+    "Implement anti-CSRF tokens on all state-changing endpoints. Use your "
+    "framework's built-in CSRF protection (e.g., Django's {% csrf_token %}, "
+    "Express csurf, Spring Security CSRF). Tokens should be unique per session "
+    "and validated server-side on every state-changing request."
+)
+
+REMEDIATION_COOKIE = (
+    "Set the SameSite attribute explicitly on all cookies. Use 'SameSite=Lax' "
+    "as the minimum (or 'Strict' for sensitive cookies). Always pair "
+    "'SameSite=None' with the 'Secure' flag. Set 'HttpOnly' on session cookies."
+)
+
+SOC2 = "CC6.8"
+
+
 class CSRFScanner(BaseScanner):
     module_name = "csrf"
     description = "CSRF token and SameSite cookie checks"
@@ -84,6 +100,8 @@ class CSRFScanner(BaseScanner):
                     evidence=f"HTTP {resp.status_code} returned without CSRF token",
                     request_data=self._format_request(method, url, data=clean_params),
                     response_data=self._format_response(resp),
+                    remediation=REMEDIATION_TOKEN,
+                    soc2_criteria=SOC2,
                 ))
 
         # check SameSite cookie attribute
@@ -112,6 +130,8 @@ class CSRFScanner(BaseScanner):
                             f"without the Secure flag, making it vulnerable to CSRF."
                         ),
                         evidence=f"Set-Cookie: {cookie_header}",
+                        remediation=REMEDIATION_COOKIE,
+                        soc2_criteria=SOC2,
                     ))
             elif "samesite" not in lower:
                 results.append(ScanResult(
@@ -123,6 +143,8 @@ class CSRFScanner(BaseScanner):
                         f"Browsers default to Lax, but explicit setting is recommended."
                     ),
                     evidence=f"Set-Cookie: {cookie_header}",
+                    remediation=REMEDIATION_COOKIE,
+                    soc2_criteria=SOC2,
                 ))
 
         return results

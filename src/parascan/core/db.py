@@ -47,6 +47,7 @@ class Scan(Base):
     fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
     total_endpoints: Mapped[int] = mapped_column(Integer, default=0)
     scanned_endpoints: Mapped[int] = mapped_column(Integer, default=0)
+    retest_of: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class Endpoint(Base):
@@ -73,6 +74,9 @@ class Finding(Base):
     evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
     request_data: Mapped[str | None] = mapped_column(Text, nullable=True)
     response_data: Mapped[str | None] = mapped_column(Text, nullable=True)
+    remediation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    soc2_criteria: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    retest_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
     found_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, server_default=func.now()
     )
@@ -80,6 +84,32 @@ class Finding(Base):
 
 _engine = None
 _session_factory = None
+
+# columns added after initial release — migrated at startup
+_MIGRATION_COLUMNS = {
+    "findings": [
+        ("remediation", "TEXT"),
+        ("soc2_criteria", "VARCHAR(50)"),
+        ("retest_status", "VARCHAR(20)"),
+    ],
+    "scans": [
+        ("retest_of", "INTEGER"),
+    ],
+}
+
+
+def _run_migrations(conn) -> None:
+    """add any missing columns to existing tables (synchronous — used with run_sync)."""
+    import sqlalchemy
+
+    for table, columns in _MIGRATION_COLUMNS.items():
+        for col_name, col_type in columns:
+            try:
+                conn.execute(
+                    sqlalchemy.text(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}")
+                )
+            except Exception:
+                pass  # column already exists
 
 
 async def get_engine():
@@ -89,6 +119,7 @@ async def get_engine():
         _engine = create_async_engine(f"sqlite+aiosqlite:///{DB_PATH}", echo=False)
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(_run_migrations)
     return _engine
 
 

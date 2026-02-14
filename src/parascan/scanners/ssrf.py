@@ -10,6 +10,17 @@ import yaml
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
+REMEDIATION = (
+    "Validate and sanitize all user-supplied URLs. Use an allowlist of permitted "
+    "domains and protocols. Block requests to internal/private IP ranges "
+    "(127.0.0.0/8, 10.0.0.0/8, 169.254.169.254, 172.16.0.0/12, 192.168.0.0/16). "
+    "Disable HTTP redirects in server-side requests or re-validate after redirects. "
+    "Use a dedicated egress proxy for outbound requests."
+)
+
+SOC2 = "CC6.6"
+
+
 class SSRFScanner(BaseScanner):
     module_name = "ssrf"
     description = "Server-side request forgery detection"
@@ -89,6 +100,8 @@ class SSRFScanner(BaseScanner):
                             evidence=f"SSRF signature found: {sig}",
                             request_data=self._format_request(method, url, params=injected),
                             response_data=self._format_response(resp),
+                            remediation=REMEDIATION,
+                            soc2_criteria=SOC2,
                         ))
                         break
 
@@ -108,6 +121,8 @@ class SSRFScanner(BaseScanner):
                             evidence=f"Response size: {resp_len}B (baseline: {baseline_len}B)",
                             request_data=self._format_request(method, url, params=injected),
                             response_data=self._format_response(resp),
+                            remediation=REMEDIATION,
+                            soc2_criteria=SOC2,
                         ))
 
             if results:

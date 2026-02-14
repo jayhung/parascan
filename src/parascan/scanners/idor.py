@@ -9,6 +9,16 @@ import httpx
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
+REMEDIATION = (
+    "Implement server-side authorization checks on every request. Verify that "
+    "the authenticated user has permission to access the requested resource. "
+    "Use indirect references (e.g., UUIDs or mapped IDs) instead of sequential "
+    "database IDs. Apply the principle of least privilege to API endpoints."
+)
+
+SOC2 = "CC6.1"
+
+
 class IDORScanner(BaseScanner):
     module_name = "idor"
     description = "Insecure direct object reference detection"
@@ -87,6 +97,8 @@ class IDORScanner(BaseScanner):
                             ),
                             request_data=self._format_request(method, url, params=injected),
                             response_data=self._format_response(resp),
+                            remediation=REMEDIATION,
+                            soc2_criteria=SOC2,
                         ))
                         break  # one finding per parameter
 

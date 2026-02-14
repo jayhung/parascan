@@ -22,6 +22,8 @@ class ScanResult:
     evidence: str | None = None
     request_data: str | None = None
     response_data: str | None = None
+    remediation: str | None = None
+    soc2_criteria: str | None = None
 
 
 class BaseScanner(ABC):
@@ -30,6 +32,7 @@ class BaseScanner(ABC):
     # subclasses must set these
     module_name: str = ""
     description: str = ""
+    default_enabled: bool = True
 
     def __init__(self) -> None:
         self._payloads: list[str] = []
