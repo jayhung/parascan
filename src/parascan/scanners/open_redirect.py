@@ -11,6 +11,16 @@ import yaml
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
+REMEDIATION = (
+    "Validate all redirect targets against an allowlist of trusted domains. "
+    "Use relative URLs for internal redirects instead of accepting full URLs. "
+    "If dynamic redirect targets are required, map them to predefined safe "
+    "destinations on the server side rather than accepting arbitrary URLs."
+)
+
+SOC2 = "CC6.6"
+
+
 class OpenRedirectScanner(BaseScanner):
     module_name = "redirect"
     description = "Open redirect detection"
@@ -80,6 +90,8 @@ class OpenRedirectScanner(BaseScanner):
                             evidence=f"Location: {location}",
                             request_data=self._format_request(method, url, params=injected),
                             response_data=f"HTTP {resp.status_code}\nLocation: {location}",
+                            remediation=REMEDIATION,
+                            soc2_criteria=SOC2,
                         ))
                         break  # one finding per parameter
 
@@ -102,6 +114,8 @@ class OpenRedirectScanner(BaseScanner):
                             evidence=f"Canary domain '{canary}' found in response body",
                             request_data=self._format_request(method, url, params=injected),
                             response_data=self._format_response(resp),
+                            remediation=REMEDIATION,
+                            soc2_criteria=SOC2,
                         ))
                         break
 

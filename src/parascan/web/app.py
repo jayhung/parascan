@@ -55,6 +55,13 @@ async def scan_detail(request: Request, scan_id: int):
     for f in findings:
         by_module[f.module] = by_module.get(f.module, 0) + 1
 
+    # group by SOC 2 criteria
+    from parascan.core.reporter import SOC2_CRITERIA_DESCRIPTIONS
+    criteria_grouped: dict[str, list] = {}
+    for f in findings:
+        if f.soc2_criteria:
+            criteria_grouped.setdefault(f.soc2_criteria, []).append(f)
+
     return templates.TemplateResponse("scan.html", {
         "request": request,
         "scan": scan,
@@ -62,6 +69,8 @@ async def scan_detail(request: Request, scan_id: int):
         "grouped": grouped,
         "by_module": by_module,
         "total": len(findings),
+        "soc2_criteria": SOC2_CRITERIA_DESCRIPTIONS,
+        "criteria_grouped": criteria_grouped,
     })
 
 
@@ -77,7 +86,15 @@ async def scan_json(scan_id: int):
 
 @app.get("/scan/{scan_id}/report", response_class=HTMLResponse)
 async def scan_report(scan_id: int):
-    """standalone HTML report."""
+    """unified HTML report (includes SOC 2 compliance)."""
     from parascan.core.reporter import generate_html_report
 
     return HTMLResponse(await generate_html_report(scan_id))
+
+
+@app.get("/scan/{scan_id}/compliance", response_class=HTMLResponse)
+async def scan_compliance(scan_id: int):
+    """redirect to unified report for backward compatibility."""
+    from fastapi.responses import RedirectResponse
+
+    return RedirectResponse(url=f"/scan/{scan_id}/report")

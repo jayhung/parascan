@@ -11,6 +11,17 @@ import yaml
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
+REMEDIATION = (
+    "Never pass user input to OS shell commands. Use safe APIs with explicit "
+    "argument lists (e.g., subprocess.run(['cmd', arg]) instead of os.system()). "
+    "If shell interaction is unavoidable, use strict allowlists for permitted "
+    "input values. Apply the principle of least privilege to the application's "
+    "OS-level permissions."
+)
+
+SOC2 = "CC6.8"
+
+
 class CommandInjectionScanner(BaseScanner):
     module_name = "cmdi"
     description = "OS command injection detection"
@@ -69,6 +80,8 @@ class CommandInjectionScanner(BaseScanner):
                             evidence=f"Command output signature: {sig}",
                             request_data=self._format_request(method, url, params=injected),
                             response_data=self._format_response(resp),
+                            remediation=REMEDIATION,
+                            soc2_criteria=SOC2,
                         ))
                         return results  # critical finding, stop
 
@@ -99,6 +112,8 @@ class CommandInjectionScanner(BaseScanner):
                         evidence=f"Response time: {elapsed:.1f}s",
                         request_data=self._format_request(method, url, params=injected),
                         response_data=self._format_response(resp),
+                        remediation=REMEDIATION,
+                        soc2_criteria=SOC2,
                     ))
                     return results
 

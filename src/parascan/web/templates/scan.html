@@ -1,72 +1,354 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>parascan — Scan #{{ scan.id }}</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f172a; color: #e2e8f0; line-height: 1.6;
+            background: #0f172a;
+            color: #e2e8f0;
+            line-height: 1.6;
         }
-        .container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
         header {
-            border-bottom: 1px solid #1e293b; padding-bottom: 1rem; margin-bottom: 2rem;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
         }
-        h1 { color: #f8fafc; font-size: 1.5rem; margin-bottom: 0.25rem; }
-        h2 { color: #94a3b8; margin: 2rem 0 1rem; font-size: 1.1rem;
-             border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
-        h4 { margin: 0.5rem 0; color: #94a3b8; font-size: 0.9rem; }
-        a { color: #60a5fa; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .meta { color: #64748b; font-size: 0.9rem; }
-        .breadcrumb { color: #64748b; margin-bottom: 1rem; font-size: 0.85rem; }
-        .summary { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; }
-        .badge { padding: 0.25rem 0.75rem; border-radius: 9999px; color: white;
-                 font-size: 0.85rem; font-weight: 600; }
-        .sev-critical { background: #dc2626; }
-        .sev-high { background: #ea580c; }
-        .sev-medium { background: #ca8a04; }
-        .sev-low { background: #2563eb; }
-        .sev-info { background: #6b7280; }
-        .status { padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem;
-                  font-weight: 600; text-transform: uppercase; }
-        .status-completed { background: #166534; color: #4ade80; }
-        .status-running { background: #854d0e; color: #facc15; }
-        .status-interrupted { background: #7c2d12; color: #fb923c; }
-        .status-failed { background: #7f1d1d; color: #f87171; }
-        .fingerprint { background: #1e293b; border-radius: 4px; padding: 0.75rem;
-                       font-family: monospace; font-size: 0.8rem; color: #94a3b8;
-                       white-space: pre-wrap; margin: 0.5rem 0; }
-        .module-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.5rem 0; }
-        .chip { background: #1e293b; padding: 0.25rem 0.6rem; border-radius: 9999px;
-                font-size: 0.8rem; color: #94a3b8; }
+
+        h1 {
+            color: #f8fafc;
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        h2 {
+            color: #94a3b8;
+            margin: 2rem 0 1rem;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 0.5rem;
+        }
+
+        h4 {
+            margin: 0.5rem 0;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .meta {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb {
+            color: #64748b;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .summary {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .sev-critical {
+            background: #dc2626;
+        }
+
+        .sev-high {
+            background: #ea580c;
+        }
+
+        .sev-medium {
+            background: #ca8a04;
+        }
+
+        .sev-low {
+            background: #2563eb;
+        }
+
+        .sev-info {
+            background: #6b7280;
+        }
+
+        .status {
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-completed {
+            background: #166534;
+            color: #4ade80;
+        }
+
+        .status-running {
+            background: #854d0e;
+            color: #facc15;
+        }
+
+        .status-interrupted {
+            background: #7c2d12;
+            color: #fb923c;
+        }
+
+        .status-failed {
+            background: #7f1d1d;
+            color: #f87171;
+        }
+
+        .fingerprint {
+            background: #1e293b;
+            border-radius: 4px;
+            padding: 0.75rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            white-space: pre-wrap;
+            margin: 0.5rem 0;
+        }
+
+        .module-chips {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 0.5rem 0;
+        }
+
+        .chip {
+            background: #1e293b;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+
         .finding {
-            background: #1e293b; border: 1px solid #334155; border-radius: 8px;
-            padding: 1rem; margin-bottom: 0.75rem;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
         }
+
         .finding-header {
-            display: flex; align-items: center; gap: 0.75rem;
-            margin-bottom: 0.5rem; flex-wrap: wrap;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
         }
-        .severity { padding: 0.15rem 0.5rem; border-radius: 4px; color: white;
-                    font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
-        .module-tag { color: #64748b; font-size: 0.8rem; }
-        p { color: #cbd5e1; font-size: 0.9rem; }
-        pre { background: #0f172a; border: 1px solid #334155; border-radius: 4px;
-              padding: 0.75rem; overflow-x: auto; font-size: 0.75rem; color: #94a3b8;
-              margin: 0.5rem 0; white-space: pre-wrap; word-break: break-all;
-              max-height: 300px; overflow-y: auto; }
-        details { margin: 0.5rem 0; }
-        summary { cursor: pointer; color: #60a5fa; font-size: 0.85rem; }
-        .export-links { margin-top: 1rem; }
+
+        .severity {
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .module-tag {
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+
+        p {
+            color: #cbd5e1;
+            font-size: 0.9rem;
+        }
+
+        pre {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            padding: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin: 0.5rem 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        details {
+            margin: 0.5rem 0;
+        }
+
+        summary {
+            cursor: pointer;
+            color: #60a5fa;
+            font-size: 0.85rem;
+        }
+
+        .remediation {
+            background: #0f2318;
+            border: 1px solid #166534;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+        }
+
+        .remediation h4 {
+            color: #4ade80;
+        }
+
+        .remediation p {
+            color: #86efac;
+            font-size: 0.85rem;
+        }
+
+        .soc2-tag {
+            display: inline-block;
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            color: #94a3b8;
+            margin-left: 0.5rem;
+            font-family: monospace;
+        }
+
+        .export-links {
+            margin-top: 1rem;
+        }
+
         .export-links a {
-            background: #1e293b; padding: 0.4rem 0.8rem; border-radius: 4px;
-            font-size: 0.85rem; margin-right: 0.5rem;
+            background: #1e293b;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-right: 0.5rem;
+        }
+
+        .exec-summary {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .exec-summary h2 {
+            margin-top: 0;
+            border: none;
+            padding: 0;
+        }
+
+        .exec-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .exec-stat {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .exec-stat .number {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        .exec-stat .label {
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+
+        .methodology {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .methodology h2 {
+            margin-top: 0;
+            border: none;
+            padding: 0;
+        }
+
+        .methodology ul {
+            margin: 0.5rem 0 0 1.5rem;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .criteria-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.5rem 0;
+        }
+
+        .criteria-table th {
+            text-align: left;
+            color: #94a3b8;
+            font-weight: 500;
+            font-size: 0.85rem;
+            padding: 0.5rem;
+            border-bottom: 1px solid #334155;
+        }
+
+        .criteria-table td {
+            padding: 0.5rem;
+            border-bottom: 1px solid #1e293b;
+            font-size: 0.9rem;
+        }
+
+        .criteria-status {
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="breadcrumb">
@@ -83,19 +365,59 @@
             </p>
         </header>
 
+        <div class="exec-summary">
+            <h2>Executive Summary</h2>
+            <p>Automated penetration testing identified <strong>{{ total }} finding(s)</strong>
+                across {{ scan.total_endpoints }} endpoint(s).</p>
+            <div class="exec-grid">
+                <div class="exec-stat">
+                    <div class="number" style="color:#dc2626">{{ grouped['critical']|length }}</div>
+                    <div class="label">Critical</div>
+                </div>
+                <div class="exec-stat">
+                    <div class="number" style="color:#ea580c">{{ grouped['high']|length }}</div>
+                    <div class="label">High</div>
+                </div>
+                <div class="exec-stat">
+                    <div class="number" style="color:#ca8a04">{{ grouped['medium']|length }}</div>
+                    <div class="label">Medium</div>
+                </div>
+                <div class="exec-stat">
+                    <div class="number" style="color:#60a5fa">{{ grouped['low']|length + grouped['info']|length }}</div>
+                    <div class="label">Low / Info</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="methodology">
+            <h2>Methodology</h2>
+            <p>Automated penetration testing was performed using parascan against the target
+                application. The following test categories were executed:</p>
+            <ul>
+                <li>Injection testing (SQL, XSS, command injection, XXE)</li>
+                <li>Authentication and session management (JWT, CSRF, IDOR)</li>
+                <li>Transport security (TLS configuration, HSTS)</li>
+                <li>Security header analysis</li>
+                <li>Information disclosure (debug endpoints, version headers)</li>
+                <li>API-specific testing (GraphQL introspection, batch attacks)</li>
+                <li>Server-side request forgery (SSRF)</li>
+                <li>Open redirect detection</li>
+            </ul>
+        </div>
+
         <div class="summary">
             {% for sev in ['critical', 'high', 'medium', 'low', 'info'] %}
-                {% set count = grouped[sev]|length %}
-                {% if count > 0 %}
-                    <span class="badge sev-{{ sev }}">{{ sev|upper }}: {{ count }}</span>
-                {% endif %}
+            {% set count = grouped[sev]|length %}
+            {% if count > 0 %}
+            <span class="badge sev-{{ sev }}">{{ sev|upper }}: {{ count }}</span>
+            {% endif %}
             {% endfor %}
         </div>
 
         {% if by_module %}
         <div class="module-chips">
             {% for module, count in by_module.items() %}
-                <span class="chip">{{ module }}: {{ count }}</span>
+            <span class="chip">{{ module }}: {{ count }}</span>
             {% endfor %}
         </div>
         {% endif %}
@@ -105,42 +427,90 @@
         <div class="fingerprint">{{ scan.fingerprint }}</div>
         {% endif %}
 
+        <h2>SOC 2 Compliance Summary</h2>
+        <table class="criteria-table">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Criteria</th>
+                    <th>Description</th>
+                    <th style="text-align:right">Findings</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for criteria_id, desc in soc2_criteria.items() %}
+                {% set cfindings = criteria_grouped.get(criteria_id, []) %}
+                {% set has_crit_high = cfindings|selectattr('severity', 'in', ['critical', 'high'])|list|length > 0 %}
+                {% if cfindings|length == 0 %}
+                {% set status = 'pass' %}
+                {% elif has_crit_high %}
+                {% set status = 'fail' %}
+                {% else %}
+                {% set status = 'warn' %}
+                {% endif %}
+                <tr>
+                    <td>
+                        {% if status == 'pass' %}
+                        <span class="criteria-status" style="background:#166534;color:#4ade80">PASS</span>
+                        {% elif status == 'fail' %}
+                        <span class="criteria-status" style="background:#dc2626;color:#fca5a5">FAIL</span>
+                        {% else %}
+                        <span class="criteria-status" style="background:#ca8a04;color:#fde68a">WARN</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ criteria_id }}</td>
+                    <td>{{ desc }}</td>
+                    <td style="text-align:right">{{ cfindings|length }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
         <div class="export-links">
-            <a href="/scan/{{ scan.id }}/json">Export JSON</a>
             <a href="/scan/{{ scan.id }}/report">Full Report</a>
+            <a href="/scan/{{ scan.id }}/json">Export JSON</a>
         </div>
 
         {% for sev in ['critical', 'high', 'medium', 'low', 'info'] %}
-            {% set sev_findings = grouped[sev] %}
-            {% if sev_findings %}
-            <h2>{{ sev|upper }} ({{ sev_findings|length }})</h2>
-            {% for f in sev_findings %}
-            <div class="finding">
-                <div class="finding-header">
-                    <span class="severity sev-{{ f.severity }}">{{ f.severity }}</span>
-                    <span class="module-tag">{{ f.module }}</span>
-                    <strong>{{ f.title }}</strong>
-                </div>
-                <p>{{ f.description }}</p>
-                {% if f.evidence %}
-                    <h4>Evidence</h4>
-                    <pre>{{ f.evidence }}</pre>
-                {% endif %}
-                {% if f.request_data %}
-                    <details>
-                        <summary>Request</summary>
-                        <pre>{{ f.request_data }}</pre>
-                    </details>
-                {% endif %}
-                {% if f.response_data %}
-                    <details>
-                        <summary>Response</summary>
-                        <pre>{{ f.response_data }}</pre>
-                    </details>
+        {% set sev_findings = grouped[sev] %}
+        {% if sev_findings %}
+        <h2>{{ sev|upper }} ({{ sev_findings|length }})</h2>
+        {% for f in sev_findings %}
+        <div class="finding">
+            <div class="finding-header">
+                <span class="severity sev-{{ f.severity }}">{{ f.severity }}</span>
+                <span class="module-tag">{{ f.module }}</span>
+                <strong>{{ f.title }}</strong>
+                {% if f.soc2_criteria %}
+                <span class="soc2-tag">SOC 2 {{ f.soc2_criteria }}</span>
                 {% endif %}
             </div>
-            {% endfor %}
+            <p>{{ f.description }}</p>
+            {% if f.evidence %}
+            <h4>Evidence</h4>
+            <pre>{{ f.evidence }}</pre>
             {% endif %}
+            {% if f.request_data %}
+            <details>
+                <summary>Request</summary>
+                <pre>{{ f.request_data }}</pre>
+            </details>
+            {% endif %}
+            {% if f.response_data %}
+            <details>
+                <summary>Response</summary>
+                <pre>{{ f.response_data }}</pre>
+            </details>
+            {% endif %}
+            {% if f.remediation %}
+            <div class="remediation">
+                <h4>How to fix</h4>
+                <p>{{ f.remediation }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
         {% endfor %}
 
         {% if total == 0 %}
@@ -150,4 +520,5 @@
         {% endif %}
     </div>
 </body>
+
 </html>

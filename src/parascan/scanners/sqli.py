@@ -11,6 +11,16 @@ import yaml
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
+REMEDIATION = (
+    "Use parameterized queries (prepared statements) for all database operations. "
+    "Never concatenate user input into SQL strings. Use your framework's ORM or "
+    "query builder (e.g., SQLAlchemy, Django ORM, Prisma). Apply input validation "
+    "and restrict database user privileges to the minimum required."
+)
+
+SOC2 = "CC6.8"
+
+
 class SQLInjectionScanner(BaseScanner):
     module_name = "sqli"
     description = "SQL injection detection (error-based, blind, time-based)"
@@ -98,6 +108,8 @@ class SQLInjectionScanner(BaseScanner):
                         evidence=f"Error signature found: {sig}",
                         request_data=self._format_request(method, url, params=injected),
                         response_data=self._format_response(resp),
+                        remediation=REMEDIATION,
+                        soc2_criteria=SOC2,
                     )
         return None
 
@@ -149,6 +161,8 @@ class SQLInjectionScanner(BaseScanner):
                         evidence=f"True response: {true_len}B, False response: {false_len}B",
                         request_data=self._format_request(method, url, params=true_params),
                         response_data=self._format_response(true_resp),
+                        remediation=REMEDIATION,
+                        soc2_criteria=SOC2,
                     )
         return None
 
@@ -198,5 +212,7 @@ class SQLInjectionScanner(BaseScanner):
                         evidence=f"Response time: {elapsed:.1f}s (baseline: {baseline_time:.1f}s)",
                         request_data=self._format_request(method, url, params=injected),
                         response_data=self._format_response(resp),
+                        remediation=REMEDIATION,
+                        soc2_criteria=SOC2,
                     )
         return None

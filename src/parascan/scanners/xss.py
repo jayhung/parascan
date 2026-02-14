@@ -9,6 +9,16 @@ import httpx
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
+REMEDIATION = (
+    "Encode all user-supplied data before rendering it in HTML. Use context-aware "
+    "output encoding (HTML entity encoding for body, attribute encoding for attributes, "
+    "JavaScript encoding for script contexts). Implement a Content-Security-Policy (CSP) "
+    "header to restrict inline script execution. Use your framework's built-in auto-escaping."
+)
+
+SOC2 = "CC6.8"
+
+
 class XSSScanner(BaseScanner):
     module_name = "xss"
     description = "Reflected cross-site scripting detection"
@@ -69,6 +79,8 @@ class XSSScanner(BaseScanner):
                         evidence=f"Payload reflected: {payload}",
                         request_data=self._format_request(method, url, params=injected),
                         response_data=self._format_response(resp),
+                        remediation=REMEDIATION,
+                        soc2_criteria=SOC2,
                     ))
                     break  # one finding per parameter
 
@@ -86,6 +98,8 @@ class XSSScanner(BaseScanner):
                         evidence=f"Partial payload reflected for: {payload}",
                         request_data=self._format_request(method, url, params=injected),
                         response_data=self._format_response(resp),
+                        remediation=REMEDIATION,
+                        soc2_criteria=SOC2,
                     ))
                     break
 

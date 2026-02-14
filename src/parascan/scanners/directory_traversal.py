@@ -10,6 +10,16 @@ import yaml
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
+REMEDIATION = (
+    "Never use user input directly in file system paths. Validate file names against "
+    "an allowlist of permitted files. Use os.path.realpath() or Path.resolve() to "
+    "canonicalize paths and verify they remain within the expected directory. "
+    "Remove or reject inputs containing '../', '..\\', or null bytes."
+)
+
+SOC2 = "CC6.8"
+
+
 class DirectoryTraversalScanner(BaseScanner):
     module_name = "traversal"
     description = "Directory/path traversal detection"
@@ -81,6 +91,8 @@ class DirectoryTraversalScanner(BaseScanner):
                             evidence=f"File content signature: {sig}",
                             request_data=self._format_request(method, url, params=injected),
                             response_data=self._format_response(resp),
+                            remediation=REMEDIATION,
+                            soc2_criteria=SOC2,
                         ))
                         return results  # critical, stop immediately
 

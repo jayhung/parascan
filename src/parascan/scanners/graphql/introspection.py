@@ -10,6 +10,15 @@ from parascan.scanners.base import BaseScanner, ScanResult
 
 INTROSPECTION_QUERY = '{"query": "{ __schema { types { name } } }"}'
 
+REMEDIATION = (
+    "Disable GraphQL introspection in production. In Apollo Server: "
+    "set introspection: false in your server config. In Graphene (Python): "
+    "use graphene-django's GRAPHENE setting with SCHEMA_OUTPUT. "
+    "Introspection exposes your full API schema to attackers."
+)
+
+SOC2 = "CC7.1"
+
 
 class GraphQLIntrospectionScanner(BaseScanner):
     module_name = "graphql-introspection"
@@ -61,6 +70,8 @@ class GraphQLIntrospectionScanner(BaseScanner):
                         headers={"Content-Type": "application/json"},
                     ),
                     response_data=self._format_response(resp),
+                    remediation=REMEDIATION,
+                    soc2_criteria=SOC2,
                 ))
                 break  # found it, no need to check more paths
 
