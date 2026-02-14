@@ -57,10 +57,14 @@ async def scan_detail(request: Request, scan_id: int):
 
     # group by SOC 2 criteria
     from parascan.core.reporter import SOC2_CRITERIA_DESCRIPTIONS
+    from parascan.core.state import get_scan_request_count
+
     criteria_grouped: dict[str, list] = {}
     for f in findings:
         if f.soc2_criteria:
             criteria_grouped.setdefault(f.soc2_criteria, []).append(f)
+
+    request_count = await get_scan_request_count(scan_id)
 
     return templates.TemplateResponse("scan.html", {
         "request": request,
@@ -71,6 +75,7 @@ async def scan_detail(request: Request, scan_id: int):
         "total": len(findings),
         "soc2_criteria": SOC2_CRITERIA_DESCRIPTIONS,
         "criteria_grouped": criteria_grouped,
+        "request_count": request_count,
     })
 
 
@@ -90,6 +95,46 @@ async def scan_report(scan_id: int):
     from parascan.core.reporter import generate_html_report
 
     return HTMLResponse(await generate_html_report(scan_id))
+
+
+@app.get("/scan/{scan_id}/history/json")
+async def scan_history_json(
+    scan_id: int,
+    module: str | None = None,
+    status_code: int | None = None,
+    limit: int = 200,
+    offset: int = 0,
+):
+    """paginated request history for the History tab."""
+    from parascan.core.state import get_scan_requests, get_scan_request_count
+
+    requests = await get_scan_requests(
+        scan_id, module=module, status_code=status_code, limit=limit, offset=offset
+    )
+    total = await get_scan_request_count(scan_id)
+
+    return JSONResponse(content={
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "requests": [
+            {
+                "id": r.id,
+                "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+                "method": r.method,
+                "url": r.url,
+                "status_code": r.status_code,
+                "duration_ms": r.duration_ms,
+                "module": r.module,
+                "finding_id": r.finding_id,
+                "request_headers": r.request_headers,
+                "request_body": r.request_body,
+                "response_headers": r.response_headers,
+                "response_body": r.response_body,
+            }
+            for r in requests
+        ],
+    })
 
 
 @app.get("/scan/{scan_id}/compliance", response_class=HTMLResponse)

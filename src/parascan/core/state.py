@@ -6,7 +6,7 @@ import datetime
 
 from sqlalchemy import select, update
 
-from parascan.core.db import Endpoint, Finding, Scan, ScanStatus, get_session
+from parascan.core.db import Endpoint, Finding, Scan, ScanRequest, ScanStatus, get_session
 
 
 async def create_scan(target_url: str, config_json: dict | None = None) -> int:
@@ -166,3 +166,105 @@ async def get_findings_for_scan(scan_id: int) -> list[Finding]:
     findings = list(result.scalars().all())
     await session.close()
     return findings
+
+
+# --- request history ---
+
+
+async def save_scan_requests(requests: list[dict]) -> None:
+    """batch insert request log entries."""
+    if not requests:
+        return
+    session = await get_session()
+    async with session.begin():
+        for req in requests:
+            session.add(ScanRequest(**req))
+    await session.close()
+
+
+async def get_scan_requests(
+    scan_id: int,
+    module: str | None = None,
+    status_code: int | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+) -> list[ScanRequest]:
+    """get request history for a scan with optional filters."""
+    stmt = select(ScanRequest).where(ScanRequest.scan_id == scan_id)
+    if module:
+        stmt = stmt.where(ScanRequest.module == module)
+    if status_code is not None:
+        stmt = stmt.where(ScanRequest.status_code == status_code)
+    stmt = stmt.order_by(ScanRequest.id)
+    if offset:
+        stmt = stmt.offset(offset)
+    if limit:
+        stmt = stmt.limit(limit)
+
+    session = await get_session()
+    result = await session.execute(stmt)
+    requests = list(result.scalars().all())
+    await session.close()
+    return requests
+
+
+async def get_scan_request_count(scan_id: int) -> int:
+    """get total number of logged requests for a scan."""
+    from sqlalchemy import func as sql_func
+
+    session = await get_session()
+    result = await session.execute(
+        select(sql_func.count()).select_from(ScanRequest).where(
+            ScanRequest.scan_id == scan_id
+        )
+    )
+    count = result.scalar() or 0
+    await session.close()
+    return count
+
+
+async def get_scan_request_stats(scan_id: int) -> dict:
+    """get summary statistics for request history."""
+    from sqlalchemy import func as sql_func
+
+    session = await get_session()
+
+    # total count
+    total_result = await session.execute(
+        select(sql_func.count()).select_from(ScanRequest).where(
+            ScanRequest.scan_id == scan_id
+        )
+    )
+    total = total_result.scalar() or 0
+
+    # count by module
+    mod_result = await session.execute(
+        select(ScanRequest.module, sql_func.count())
+        .where(ScanRequest.scan_id == scan_id)
+        .group_by(ScanRequest.module)
+    )
+    by_module = {row[0] or "unknown": row[1] for row in mod_result.all()}
+
+    # count by status code range
+    all_reqs = await session.execute(
+        select(ScanRequest.status_code).where(ScanRequest.scan_id == scan_id)
+    )
+    status_ranges: dict[str, int] = {"2xx": 0, "3xx": 0, "4xx": 0, "5xx": 0, "error": 0}
+    for (code,) in all_reqs.all():
+        if code is None:
+            status_ranges["error"] += 1
+        elif 200 <= code < 300:
+            status_ranges["2xx"] += 1
+        elif 300 <= code < 400:
+            status_ranges["3xx"] += 1
+        elif 400 <= code < 500:
+            status_ranges["4xx"] += 1
+        elif 500 <= code < 600:
+            status_ranges["5xx"] += 1
+
+    await session.close()
+    return {
+        "total": total,
+        "by_module": by_module,
+        "by_status": status_ranges,
+    }

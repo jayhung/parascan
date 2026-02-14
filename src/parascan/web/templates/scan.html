@@ -346,6 +346,150 @@
             font-size: 0.7rem;
             font-weight: 700;
         }
+
+        /* tabs */
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid #334155;
+            margin: 1.5rem 0 0;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #64748b;
+            padding: 0.75rem 1.25rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-family: inherit;
+        }
+
+        .tab-btn:hover {
+            color: #e2e8f0;
+        }
+
+        .tab-btn.active {
+            color: #60a5fa;
+            border-bottom-color: #60a5fa;
+        }
+
+        .tab-btn .count {
+            background: #334155;
+            color: #94a3b8;
+            padding: 0.1rem 0.4rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            margin-left: 0.35rem;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* history tab */
+        .history-filters {
+            display: flex;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+        }
+
+        .history-filters select,
+        .history-filters input {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            padding: 0.4rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-family: inherit;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .history-table th {
+            text-align: left;
+            color: #94a3b8;
+            font-weight: 500;
+            padding: 0.5rem;
+            border-bottom: 1px solid #334155;
+            font-size: 0.8rem;
+        }
+
+        .history-table td {
+            padding: 0.5rem;
+            border-bottom: 1px solid #1e293b;
+            color: #cbd5e1;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .history-table tr {
+            cursor: pointer;
+        }
+
+        .history-table tr:hover {
+            background: #1e293b;
+        }
+
+        .history-table .status-2xx { color: #4ade80; }
+        .history-table .status-3xx { color: #60a5fa; }
+        .history-table .status-4xx { color: #fde68a; }
+        .history-table .status-5xx { color: #f87171; }
+        .history-table .status-err { color: #6b7280; }
+
+        .history-table .has-finding {
+            background: #1a1a2e;
+            border-left: 3px solid #60a5fa;
+        }
+
+        .history-detail {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin: 0.25rem 0 0.5rem;
+        }
+
+        .history-detail pre {
+            max-height: 200px;
+        }
+
+        .history-empty {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+
+        .load-more {
+            display: block;
+            width: 100%;
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #60a5fa;
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            font-family: inherit;
+        }
+
+        .load-more:hover {
+            background: #334155;
+        }
     </style>
 </head>
 
@@ -471,54 +615,251 @@
             <a href="/scan/{{ scan.id }}/json">Export JSON</a>
         </div>
 
-        {% for sev in ['critical', 'high', 'medium', 'low', 'info'] %}
-        {% set sev_findings = grouped[sev] %}
-        {% if sev_findings %}
-        <h2>{{ sev|upper }} ({{ sev_findings|length }})</h2>
-        {% for f in sev_findings %}
-        <div class="finding">
-            <div class="finding-header">
-                <span class="severity sev-{{ f.severity }}">{{ f.severity }}</span>
-                <span class="module-tag">{{ f.module }}</span>
-                <strong>{{ f.title }}</strong>
-                {% if f.soc2_criteria %}
-                <span class="soc2-tag">SOC 2 {{ f.soc2_criteria }}</span>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="findings">
+                Findings <span class="count">{{ total }}</span>
+            </button>
+            <button class="tab-btn" data-tab="history">
+                History <span class="count">{{ request_count }}</span>
+            </button>
+        </div>
+
+        <!-- findings tab -->
+        <div id="tab-findings" class="tab-panel active">
+            {% for sev in ['critical', 'high', 'medium', 'low', 'info'] %}
+            {% set sev_findings = grouped[sev] %}
+            {% if sev_findings %}
+            <h2>{{ sev|upper }} ({{ sev_findings|length }})</h2>
+            {% for f in sev_findings %}
+            <div class="finding">
+                <div class="finding-header">
+                    <span class="severity sev-{{ f.severity }}">{{ f.severity }}</span>
+                    <span class="module-tag">{{ f.module }}</span>
+                    <strong>{{ f.title }}</strong>
+                    {% if f.soc2_criteria %}
+                    <span class="soc2-tag">SOC 2 {{ f.soc2_criteria }}</span>
+                    {% endif %}
+                </div>
+                <p>{{ f.description }}</p>
+                {% if f.evidence %}
+                <h4>Evidence</h4>
+                <pre>{{ f.evidence }}</pre>
+                {% endif %}
+                {% if f.request_data %}
+                <details>
+                    <summary>Request</summary>
+                    <pre>{{ f.request_data }}</pre>
+                </details>
+                {% endif %}
+                {% if f.response_data %}
+                <details>
+                    <summary>Response</summary>
+                    <pre>{{ f.response_data }}</pre>
+                </details>
+                {% endif %}
+                {% if f.remediation %}
+                <div class="remediation">
+                    <h4>How to fix</h4>
+                    <p>{{ f.remediation }}</p>
+                </div>
                 {% endif %}
             </div>
-            <p>{{ f.description }}</p>
-            {% if f.evidence %}
-            <h4>Evidence</h4>
-            <pre>{{ f.evidence }}</pre>
+            {% endfor %}
             {% endif %}
-            {% if f.request_data %}
-            <details>
-                <summary>Request</summary>
-                <pre>{{ f.request_data }}</pre>
-            </details>
-            {% endif %}
-            {% if f.response_data %}
-            <details>
-                <summary>Response</summary>
-                <pre>{{ f.response_data }}</pre>
-            </details>
-            {% endif %}
-            {% if f.remediation %}
-            <div class="remediation">
-                <h4>How to fix</h4>
-                <p>{{ f.remediation }}</p>
+            {% endfor %}
+
+            {% if total == 0 %}
+            <div style="text-align:center; padding:3rem; color:#64748b;">
+                <p>No vulnerabilities detected in this scan.</p>
             </div>
             {% endif %}
         </div>
-        {% endfor %}
-        {% endif %}
-        {% endfor %}
 
-        {% if total == 0 %}
-        <div style="text-align:center; padding:3rem; color:#64748b;">
-            <p>No vulnerabilities detected in this scan.</p>
+        <!-- history tab -->
+        <div id="tab-history" class="tab-panel">
+            <p style="color:#94a3b8; margin:1rem 0 0.5rem; font-size:0.85rem;">
+                Complete record of all scan requests for audit and compliance review.
+            </p>
+            <div class="history-filters">
+                <select id="hist-module">
+                    <option value="">All modules</option>
+                </select>
+                <select id="hist-status">
+                    <option value="">All statuses</option>
+                    <option value="200">2xx</option>
+                    <option value="300">3xx</option>
+                    <option value="400">4xx</option>
+                    <option value="500">5xx</option>
+                </select>
+                <input id="hist-search" type="text" placeholder="Filter URL...">
+            </div>
+            <div id="history-content">
+                <div class="history-empty">Click the History tab to load request data.</div>
+            </div>
         </div>
-        {% endif %}
     </div>
+
+    <script>
+    (function() {
+        // tab switching
+        const tabs = document.querySelectorAll('.tab-btn');
+        const panels = document.querySelectorAll('.tab-panel');
+        let historyLoaded = false;
+
+        tabs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                panels.forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+
+                if (btn.dataset.tab === 'history' && !historyLoaded) {
+                    historyLoaded = true;
+                    loadHistory();
+                }
+            });
+        });
+
+        // history loading
+        const scanId = {{ scan.id }};
+        let allRequests = [];
+        let historyOffset = 0;
+        const historyLimit = 200;
+        let totalRequests = {{ request_count }};
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function statusClass(code) {
+            if (!code) return 'status-err';
+            if (code < 300) return 'status-2xx';
+            if (code < 400) return 'status-3xx';
+            if (code < 500) return 'status-4xx';
+            return 'status-5xx';
+        }
+
+        function renderTable(requests) {
+            if (requests.length === 0) {
+                return '<div class="history-empty">No requests logged for this scan.</div>';
+            }
+
+            let html = '<table class="history-table"><thead><tr>' +
+                '<th>Time</th><th>Module</th><th>Method</th><th>URL</th>' +
+                '<th>Status</th><th>Duration</th></tr></thead><tbody>';
+
+            requests.forEach((r, i) => {
+                const time = r.timestamp ? r.timestamp.split('T')[1].split('.')[0] : '';
+                const cls = statusClass(r.status_code);
+                const findingCls = r.finding_id ? ' has-finding' : '';
+                html += '<tr class="hist-row' + findingCls + '" data-idx="' + i + '">' +
+                    '<td>' + escapeHtml(time) + '</td>' +
+                    '<td>' + escapeHtml(r.module) + '</td>' +
+                    '<td>' + escapeHtml(r.method) + '</td>' +
+                    '<td>' + escapeHtml(r.url) + '</td>' +
+                    '<td class="' + cls + '">' + (r.status_code || '—') + '</td>' +
+                    '<td>' + (r.duration_ms != null ? r.duration_ms + 'ms' : '—') + '</td>' +
+                    '</tr>' +
+                    '<tr class="hist-detail" id="detail-' + i + '" style="display:none">' +
+                    '<td colspan="6"><div class="history-detail">' +
+                    '<h4>Request Headers</h4><pre>' + escapeHtml(r.request_headers) + '</pre>' +
+                    (r.request_body ? '<h4>Request Body</h4><pre>' + escapeHtml(r.request_body) + '</pre>' : '') +
+                    '<h4>Response Headers</h4><pre>' + escapeHtml(r.response_headers) + '</pre>' +
+                    (r.response_body ? '<h4>Response Body</h4><pre>' + escapeHtml(r.response_body) + '</pre>' : '') +
+                    '</div></td></tr>';
+            });
+
+            html += '</tbody></table>';
+
+            if (allRequests.length < totalRequests) {
+                html += '<button class="load-more" id="load-more-btn">' +
+                    'Load more (' + allRequests.length + ' / ' + totalRequests + ')' +
+                    '</button>';
+            }
+
+            return html;
+        }
+
+        function applyFilters() {
+            const moduleFilter = document.getElementById('hist-module').value;
+            const statusFilter = document.getElementById('hist-status').value;
+            const urlFilter = document.getElementById('hist-search').value.toLowerCase();
+
+            let filtered = allRequests;
+            if (moduleFilter) {
+                filtered = filtered.filter(r => r.module === moduleFilter);
+            }
+            if (statusFilter) {
+                const base = parseInt(statusFilter);
+                filtered = filtered.filter(r => r.status_code >= base && r.status_code < base + 100);
+            }
+            if (urlFilter) {
+                filtered = filtered.filter(r => r.url && r.url.toLowerCase().includes(urlFilter));
+            }
+
+            document.getElementById('history-content').innerHTML = renderTable(filtered);
+            attachRowHandlers();
+        }
+
+        function attachRowHandlers() {
+            document.querySelectorAll('.hist-row').forEach(row => {
+                row.addEventListener('click', () => {
+                    const detail = document.getElementById('detail-' + row.dataset.idx);
+                    if (detail) {
+                        detail.style.display = detail.style.display === 'none' ? '' : 'none';
+                    }
+                });
+            });
+
+            const loadMoreBtn = document.getElementById('load-more-btn');
+            if (loadMoreBtn) {
+                loadMoreBtn.addEventListener('click', () => {
+                    historyOffset += historyLimit;
+                    loadHistory(true);
+                });
+            }
+        }
+
+        function populateModuleFilter() {
+            const modules = [...new Set(allRequests.map(r => r.module).filter(Boolean))];
+            const sel = document.getElementById('hist-module');
+            modules.sort().forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                sel.appendChild(opt);
+            });
+        }
+
+        async function loadHistory(append) {
+            if (!append) historyOffset = 0;
+
+            const resp = await fetch('/scan/' + scanId + '/history/json?limit=' + historyLimit + '&offset=' + historyOffset);
+            const data = await resp.json();
+
+            totalRequests = data.total;
+            if (append) {
+                allRequests = allRequests.concat(data.requests);
+            } else {
+                allRequests = data.requests;
+            }
+
+            if (!append) populateModuleFilter();
+            applyFilters();
+        }
+
+        // filter event listeners
+        document.getElementById('hist-module').addEventListener('change', applyFilters);
+        document.getElementById('hist-status').addEventListener('change', applyFilters);
+
+        let searchTimeout;
+        document.getElementById('hist-search').addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(applyFilters, 300);
+        });
+    })();
+    </script>
 </body>
 
 </html>

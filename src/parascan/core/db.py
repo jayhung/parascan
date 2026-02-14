@@ -82,6 +82,25 @@ class Finding(Base):
     )
 
 
+class ScanRequest(Base):
+    """HTTP request/response log for audit trail."""
+    __tablename__ = "scan_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scan_id: Mapped[int] = mapped_column(Integer, index=True)
+    timestamp: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+    method: Mapped[str] = mapped_column(String(10))
+    url: Mapped[str] = mapped_column(String(2048))
+    request_headers: Mapped[str | None] = mapped_column(Text, nullable=True)
+    request_body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    response_headers: Mapped[str | None] = mapped_column(Text, nullable=True)
+    response_body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    module: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    finding_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
 _engine = None
 _session_factory = None
 
