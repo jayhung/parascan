@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
+import datetime
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -26,6 +29,7 @@ from parascan.core.state import (
     mark_endpoint_scanned,
     save_endpoints,
     save_finding,
+    save_scan_requests,
     update_scan_fingerprint,
     update_scan_progress,
 )
@@ -35,6 +39,100 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("parascan")
 console = Console()
+
+# context var to track which scanner module is currently active
+_current_module: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "_current_module", default="discovery"
+)
+
+# max response body size to store (100KB)
+_MAX_BODY_SIZE = 100 * 1024
+
+
+class RequestLogger:
+    """captures all HTTP requests/responses via httpx event hooks."""
+
+    def __init__(self, scan_id: int, enabled: bool = True) -> None:
+        self.scan_id = scan_id
+        self.enabled = enabled
+        self._buffer: list[dict[str, Any]] = []
+        self._pending_starts: dict[int, tuple[float, str, str, str | None, str | None]] = {}
+        self._flush_size = 50
+
+    def get_event_hooks(self) -> dict[str, list]:
+        """return httpx event_hooks dict to attach to a client."""
+        if not self.enabled:
+            return {}
+        return {
+            "request": [self._on_request],
+            "response": [self._on_response],
+        }
+
+    async def _on_request(self, request: httpx.Request) -> None:
+        """capture request details before it is sent."""
+        body = None
+        if request.content:
+            try:
+                body = request.content.decode("utf-8", errors="replace")[:_MAX_BODY_SIZE]
+            except Exception:
+                body = "<binary>"
+
+        headers = "\n".join(f"{k}: {v}" for k, v in request.headers.items())
+        self._pending_starts[id(request)] = (
+            time.monotonic(),
+            str(request.method),
+            str(request.url),
+            headers,
+            body,
+        )
+
+    async def _on_response(self, response: httpx.Response) -> None:
+        """capture response and pair with the pending request."""
+        request = response.request
+        start_time, method, url, req_headers, req_body = self._pending_starts.pop(
+            id(request), (time.monotonic(), str(request.method), str(request.url), None, None)
+        )
+
+        duration_ms = int((time.monotonic() - start_time) * 1000)
+
+        # read body so it's available
+        await response.aread()
+
+        resp_headers = "\n".join(f"{k}: {v}" for k, v in response.headers.items())
+        resp_body = None
+        try:
+            text = response.text
+            resp_body = text[:_MAX_BODY_SIZE] if text else None
+        except Exception:
+            resp_body = "<binary>"
+
+        module = _current_module.get()
+
+        self._buffer.append({
+            "scan_id": self.scan_id,
+            "timestamp": datetime.datetime.now(datetime.UTC),
+            "method": method,
+            "url": url[:2048],
+            "request_headers": req_headers,
+            "request_body": req_body,
+            "status_code": response.status_code,
+            "response_headers": resp_headers,
+            "response_body": resp_body,
+            "duration_ms": duration_ms,
+            "module": module,
+            "finding_id": None,
+        })
+
+        if len(self._buffer) >= self._flush_size:
+            await self.flush()
+
+    async def flush(self) -> None:
+        """flush buffered requests to the database."""
+        if not self._buffer:
+            return
+        batch = self._buffer[:]
+        self._buffer.clear()
+        await save_scan_requests(batch)
 
 
 def _get_all_scanner_classes() -> list[type[BaseScanner]]:
@@ -151,11 +249,14 @@ async def _run_scanner_on_endpoint(
         return []
 
 
-async def run_scan(config: TargetConfig, resume: bool = False) -> int:
+async def run_scan(
+    config: TargetConfig, resume: bool = False, findings_only: bool = False,
+) -> int:
     """
     Execute a full scan against the target. Returns the scan id.
 
     If resume=True, picks up the most recent interrupted scan.
+    If findings_only=True, skips request history logging.
     """
     auth = AuthManager(config.auth)
     proxy = ProxyManager(config.proxy)
@@ -163,10 +264,26 @@ async def run_scan(config: TargetConfig, resume: bool = False) -> int:
     rate_limiter = RateLimiter(config.scan.rate_limit)
     semaphore = asyncio.Semaphore(config.scan.concurrency)
 
+    # we need scan_id before creating the client for the logger,
+    # but resume mode determines scan_id differently
+    scan_id = 0
+    if resume:
+        latest = await get_latest_scan()
+        if latest and latest.status == ScanStatus.INTERRUPTED.value:
+            scan_id = latest.id
+        else:
+            console.print("[red]No interrupted scan found to resume.[/red]")
+            return 0
+    else:
+        scan_id = await create_scan(config.url)
+
+    req_logger = RequestLogger(scan_id, enabled=not findings_only)
+
     client_kwargs: dict[str, Any] = {
         "timeout": httpx.Timeout(30.0),
         "follow_redirects": True,
         "headers": auth.get_headers(),
+        "event_hooks": req_logger.get_event_hooks(),
     }
     cookies = auth.get_cookies()
     if cookies:
@@ -176,24 +293,17 @@ async def run_scan(config: TargetConfig, resume: bool = False) -> int:
     async with httpx.AsyncClient(**client_kwargs) as client:
         # handle resume
         if resume:
-            latest = await get_latest_scan()
-            if latest and latest.status == ScanStatus.INTERRUPTED.value:
-                scan_id = latest.id
-                console.print(f"[yellow]Resuming scan #{scan_id}[/yellow]")
-                unscanned = await get_unscanned_endpoints(scan_id)
-                ep_dicts = [
-                    {"url": ep.url, "method": ep.method, "params": ep.params, "_id": ep.id}
-                    for ep in unscanned
-                ]
-            else:
-                console.print("[red]No interrupted scan found to resume.[/red]")
-                return 0
+            console.print(f"[yellow]Resuming scan #{scan_id}[/yellow]")
+            unscanned = await get_unscanned_endpoints(scan_id)
+            ep_dicts = [
+                {"url": ep.url, "method": ep.method, "params": ep.params, "_id": ep.id}
+                for ep in unscanned
+            ]
         else:
-            # create new scan
-            scan_id = await create_scan(config.url)
             console.print(f"[bold green]Starting scan #{scan_id}[/bold green] → {config.url}")
 
             # fingerprint
+            _current_module.set("fingerprint")
             console.print("[dim]Fingerprinting target...[/dim]")
             fp_data = await fingerprint_target(client, config.url)
             fp_str = format_fingerprint(fp_data)
@@ -202,6 +312,7 @@ async def run_scan(config: TargetConfig, resume: bool = False) -> int:
                 console.print(f"[cyan]{fp_str}[/cyan]")
 
             # discover endpoints
+            _current_module.set("discovery")
             console.print("[dim]Discovering endpoints...[/dim]")
             endpoints = await _discover_endpoints(client, config, scope)
             saved_ids = await save_endpoints(scan_id, endpoints)
@@ -228,6 +339,7 @@ async def run_scan(config: TargetConfig, resume: bool = False) -> int:
             endpoint_id = ep.pop("_id", None)
 
             async def scan_endpoint(scanner: BaseScanner) -> list[ScanResult]:
+                _current_module.set(scanner.module_name)
                 async with semaphore:
                     return await _run_scanner_on_endpoint(
                         scanner, client, ep, rate_limiter
@@ -238,6 +350,7 @@ async def run_scan(config: TargetConfig, resume: bool = False) -> int:
             try:
                 results_list = await asyncio.gather(*tasks)
             except KeyboardInterrupt:
+                await req_logger.flush()
                 await finish_scan(scan_id, ScanStatus.INTERRUPTED)
                 console.print("[yellow]Scan interrupted. Use --resume to continue.[/yellow]")
                 return scan_id
@@ -264,6 +377,8 @@ async def run_scan(config: TargetConfig, resume: bool = False) -> int:
                 await mark_endpoint_scanned(endpoint_id)
             await update_scan_progress(scan_id, len(ep_dicts), i + 1)
 
+        # flush any remaining logged requests
+        await req_logger.flush()
         await finish_scan(scan_id, ScanStatus.COMPLETED)
 
         # print summary
@@ -303,7 +418,9 @@ def _print_summary(scan_id: int, total: int, counts: dict[str, int]) -> None:
     console.print(f"\n[dim]View details: parascan dashboard[/dim]")
 
 
-async def run_retest(config: TargetConfig, retest_scan_id: int) -> int:
+async def run_retest(
+    config: TargetConfig, retest_scan_id: int, findings_only: bool = False,
+) -> int:
     """re-run scanners from a previous scan to verify fixes.
 
     Only runs modules that produced findings in the reference scan, against the
@@ -345,6 +462,8 @@ async def run_retest(config: TargetConfig, retest_scan_id: int) -> int:
         )
     await session.close()
 
+    req_logger = RequestLogger(scan_id, enabled=not findings_only)
+
     # set up HTTP client
     auth = AuthManager(config.auth)
     proxy = ProxyManager(config.proxy)
@@ -355,6 +474,7 @@ async def run_retest(config: TargetConfig, retest_scan_id: int) -> int:
         "timeout": httpx.Timeout(30.0),
         "follow_redirects": True,
         "headers": auth.get_headers(),
+        "event_hooks": req_logger.get_event_hooks(),
     }
     cookies = auth.get_cookies()
     if cookies:
@@ -382,6 +502,7 @@ async def run_retest(config: TargetConfig, retest_scan_id: int) -> int:
             endpoint_id = saved_ids[i] if i < len(saved_ids) else None
 
             async def scan_ep(scanner: BaseScanner) -> list[ScanResult]:
+                _current_module.set(scanner.module_name)
                 async with semaphore:
                     return await _run_scanner_on_endpoint(scanner, client, ep, rate_limiter)
 
@@ -417,6 +538,8 @@ async def run_retest(config: TargetConfig, retest_scan_id: int) -> int:
             if endpoint_id:
                 await mark_endpoint_scanned(endpoint_id)
             await update_scan_progress(scan_id, len(endpoints), i + 1)
+
+        await req_logger.flush()
 
         # mark previously-found issues that are now absent as "fixed"
         fixed_titles = ref_titles - new_titles
@@ -458,7 +581,9 @@ async def run_retest(config: TargetConfig, retest_scan_id: int) -> int:
     return scan_id
 
 
-async def run_auth_comparison(config: TargetConfig) -> int:
+async def run_auth_comparison(
+    config: TargetConfig, findings_only: bool = False,
+) -> int:
     """test endpoints with and without authentication to detect broken access control.
 
     Makes an unauthenticated request to each discovered endpoint and compares
@@ -469,10 +594,15 @@ async def run_auth_comparison(config: TargetConfig) -> int:
     scope = ScopeEnforcer(config.scope)
     rate_limiter = RateLimiter(config.scan.rate_limit)
 
+    scan_id = await create_scan(config.url)
+    req_logger = RequestLogger(scan_id, enabled=not findings_only)
+    _current_module.set("auth-check")
+
     authed_kwargs: dict[str, Any] = {
         "timeout": httpx.Timeout(30.0),
         "follow_redirects": True,
         "headers": auth.get_headers(),
+        "event_hooks": req_logger.get_event_hooks(),
     }
     cookies = auth.get_cookies()
     if cookies:
@@ -482,10 +612,10 @@ async def run_auth_comparison(config: TargetConfig) -> int:
     unauthed_kwargs: dict[str, Any] = {
         "timeout": httpx.Timeout(30.0),
         "follow_redirects": True,
+        "event_hooks": req_logger.get_event_hooks(),
     }
     unauthed_kwargs.update(proxy.get_transport_kwargs())
 
-    scan_id = await create_scan(config.url)
     console.print(f"[bold cyan]Auth comparison scan #{scan_id}[/bold cyan] → {config.url}")
 
     async with httpx.AsyncClient(**authed_kwargs) as authed_client:
@@ -561,6 +691,7 @@ async def run_auth_comparison(config: TargetConfig) -> int:
                     await mark_endpoint_scanned(endpoint_id)
                 await update_scan_progress(scan_id, len(endpoints), i + 1)
 
+            await req_logger.flush()
             await finish_scan(scan_id, ScanStatus.COMPLETED)
             _print_summary(scan_id, total_findings, finding_counts)
 

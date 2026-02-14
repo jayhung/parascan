@@ -104,6 +104,7 @@ def scan(
     resume: bool = typer.Option(False, "--resume", help="Resume the most recent interrupted scan"),
     retest: Optional[int] = typer.Option(None, "--retest", help="Re-run scan against a previous scan ID to verify fixes"),
     test_unauth: bool = typer.Option(False, "--test-unauth", help="Test endpoints without auth to detect broken access control"),
+    findings_only: bool = typer.Option(False, "--findings-only", help="Skip request history logging for a lighter scan"),
 ) -> None:
     """Run a penetration test against a web application."""
     if resume:
@@ -125,6 +126,7 @@ def scan(
             resume=True,
             retest=None,
             test_unauth=False,
+            findings_only=findings_only,
         ))
         return
 
@@ -162,6 +164,7 @@ def scan(
         resume=False,
         retest=retest,
         test_unauth=test_unauth,
+        findings_only=findings_only,
     ))
 
 
@@ -182,6 +185,7 @@ async def _run_scan_async(
     resume: bool,
     retest: int | None = None,
     test_unauth: bool = False,
+    findings_only: bool = False,
 ) -> None:
     """async scan runner."""
     from parascan.core.config import build_config_from_cli, load_config
@@ -220,12 +224,12 @@ async def _run_scan_async(
         )
 
     if retest:
-        scan_id = await run_retest(target_config, retest_scan_id=retest)
+        scan_id = await run_retest(target_config, retest_scan_id=retest, findings_only=findings_only)
     elif test_unauth:
         from parascan.core.engine import run_auth_comparison
-        scan_id = await run_auth_comparison(target_config)
+        scan_id = await run_auth_comparison(target_config, findings_only=findings_only)
     else:
-        scan_id = await run_scan(target_config, resume=resume)
+        scan_id = await run_scan(target_config, resume=resume, findings_only=findings_only)
 
     if ci and scan_id:
         report = await generate_json_report(scan_id)
