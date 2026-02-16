@@ -105,8 +105,12 @@ def scan(
     retest: Optional[int] = typer.Option(None, "--retest", help="Re-run scan against a previous scan ID to verify fixes"),
     test_unauth: bool = typer.Option(False, "--test-unauth", help="Test endpoints without auth to detect broken access control"),
     findings_only: bool = typer.Option(False, "--findings-only", help="Skip request history logging for a lighter scan"),
+    database_url: Optional[str] = typer.Option(None, "--database-url", help="Database connection URL (postgresql:// or sqlite://). Overrides DATABASE_URL env var."),
 ) -> None:
     """Run a penetration test against a web application."""
+    from parascan.core.db import set_database_url
+    
+    set_database_url(database_url)
     if resume:
         # resume mode doesn't need a URL
         asyncio.run(_run_scan_async(
@@ -243,9 +247,13 @@ async def _run_scan_async(
 def dashboard(
     port: int = typer.Option(8000, "--port", "-p", help="Port to serve the dashboard on"),
     host: str = typer.Option("127.0.0.1", "--host", help="Host to bind to"),
+    database_url: Optional[str] = typer.Option(None, "--database-url", help="Database connection URL. Overrides DATABASE_URL env var."),
 ) -> None:
     """Launch the web dashboard to browse scan results."""
     import uvicorn
+    from parascan.core.db import set_database_url
+    
+    set_database_url(database_url)
 
     console.print(f"[bold green]parascan dashboard[/bold green] → http://{host}:{port}")
     console.print("[dim]Press Ctrl+C to stop[/dim]")

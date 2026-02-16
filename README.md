@@ -222,6 +222,81 @@ parascan is a **detection tool**, not an exploitation framework. It identifies v
 
 All scan data is stored locally in `~/.parascan/parascan.db` (SQLite). No data is sent to external services.
 
+## Database Configuration
+
+parascan supports both **SQLite** (local, default) and **PostgreSQL** (centralized, production).
+
+### Default: SQLite
+
+By default, parascan uses SQLite at `~/.parascan/parascan.db`. This works great for:
+- Local development
+- Single-user scanning
+- Laptop-based testing
+
+### PostgreSQL for Centralized Deployments
+
+To enable distributed scanning (multiple workers writing to one database) or deploy the dashboard to Vercel/similar platforms, use PostgreSQL:
+
+**Option 1: Environment Variable**
+
+```bash
+export DATABASE_URL="postgresql://user:pass@db.example.com:5432/parascan"
+parascan scan https://example.com  # writes to PostgreSQL
+parascan dashboard                  # reads from PostgreSQL
+```
+
+**Option 2: CLI Parameter** (overrides env var)
+
+```bash
+parascan scan https://example.com --database-url "postgresql://..."
+parascan dashboard --database-url "postgresql://..."
+```
+
+**Install PostgreSQL support:**
+
+```bash
+pip install -e ".[postgres]"
+```
+
+### Use Cases
+
+**Local scanning (default):**
+```bash
+parascan scan https://example.com  # uses SQLite
+```
+
+**CI/CD + centralized dashboard:**
+```bash
+# .env or CI secrets
+DATABASE_URL=postgresql://user:pass@db.example.com:5432/parascan
+
+# scan writes to PostgreSQL
+parascan scan https://api.example.com
+
+# deploy dashboard to Vercel (reads from PostgreSQL)
+vercel deploy
+```
+
+**Multiple scan workers:**
+```bash
+# laptop 1
+parascan scan https://api.prod.com --database-url "postgresql://..."
+
+# laptop 2
+parascan scan https://api.staging.com --database-url "postgresql://..."
+
+# both write to same PostgreSQL instance
+# dashboard shows all scans in one place
+```
+
+### Recommended PostgreSQL Providers
+
+- **Neon** (free tier, serverless, auto-scaling)
+- **Supabase** (free tier, includes UI)
+- **Vercel Postgres** (if deploying dashboard to Vercel)
+- **Railway** (cheap, easy setup)
+- **AWS RDS / DigitalOcean Managed DB** (production-grade)
+
 ## Dashboard
 
 Launch the web dashboard to browse scan results:
