@@ -45,6 +45,9 @@ dev = [
     "pytest-asyncio>=0.23.0",
     "ruff>=0.5.0",
 ]
+postgres = [
+    "asyncpg>=0.29.0",
+]
 
 [project.scripts]
 parascan = "parascan.cli:app"

@@ -1,8 +1,9 @@
-"""SQLAlchemy models and async SQLite session management."""
+"""SQLAlchemy models and async database session management (SQLite or PostgreSQL)."""
 
 from __future__ import annotations
 
 import datetime
+import os
 import pathlib
 from enum import Enum
 
@@ -12,6 +13,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 DATA_DIR = pathlib.Path.home() / ".parascan"
 DB_PATH = DATA_DIR / "parascan.db"
+
+# database URL override from CLI (priority: CLI > env > default)
+_database_url_override: str | None = None
 
 
 class Base(DeclarativeBase):
@@ -117,6 +121,47 @@ _MIGRATION_COLUMNS = {
 }
 
 
+def set_database_url(url: str | None) -> None:
+    """set database URL override from CLI (must be called before get_engine)."""
+    global _database_url_override, _engine, _session_factory
+    _database_url_override = url
+    # reset engine and session factory so next get_engine() call uses new URL
+    _engine = None
+    _session_factory = None
+
+
+def _get_database_url() -> str:
+    """get database URL with priority: CLI param > env var > local SQLite."""
+    # 1. CLI parameter (highest priority)
+    if _database_url_override:
+        return _normalize_postgres_url(_database_url_override)
+    
+    # 2. environment variable
+    env_url = os.getenv("DATABASE_URL")
+    if env_url:
+        return _normalize_postgres_url(env_url)
+    
+    # 3. default: local SQLite
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return f"sqlite+aiosqlite:///{DB_PATH}"
+
+
+def _normalize_postgres_url(url: str) -> str:
+    """normalize PostgreSQL URL to use asyncpg driver."""
+    if "postgresql" not in url and "postgres" not in url:
+        return url  # not a postgres URL, return as-is
+    
+    # some providers use postgres://, SQLAlchemy prefers postgresql://
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    
+    # ensure asyncpg driver for async support
+    if url.startswith("postgresql://") and "+asyncpg" not in url:
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    
+    return url
+
+
 def _run_migrations(conn) -> None:
     """add any missing columns to existing tables (synchronous — used with run_sync)."""
     import sqlalchemy
@@ -134,11 +179,21 @@ def _run_migrations(conn) -> None:
 async def get_engine():
     global _engine
     if _engine is None:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        _engine = create_async_engine(f"sqlite+aiosqlite:///{DB_PATH}", echo=False)
+        db_url = _get_database_url()
+        is_postgres = "postgresql" in db_url
+        
+        # configure engine based on database type
+        engine_kwargs = {"echo": False}
+        if is_postgres:
+            engine_kwargs["pool_size"] = 10
+            engine_kwargs["max_overflow"] = 20
+        
+        _engine = create_async_engine(db_url, **engine_kwargs)
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-            await conn.run_sync(_run_migrations)
+            # only run migrations on SQLite (PostgreSQL uses proper migrations)
+            if not is_postgres:
+                await conn.run_sync(_run_migrations)
     return _engine
 
 
