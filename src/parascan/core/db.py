@@ -7,7 +7,7 @@ import os
 import pathlib
 from enum import Enum
 
-from sqlalchemy import JSON, DateTime, Integer, String, Text, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, event, func
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -58,7 +58,9 @@ class Endpoint(Base):
     __tablename__ = "endpoints"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    scan_id: Mapped[int] = mapped_column(Integer, index=True)
+    scan_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("scans.id", ondelete="CASCADE"), index=True
+    )
     url: Mapped[str] = mapped_column(String(2048))
     method: Mapped[str] = mapped_column(String(10), default="GET")
     params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
@@ -69,8 +71,12 @@ class Finding(Base):
     __tablename__ = "findings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    scan_id: Mapped[int] = mapped_column(Integer, index=True)
-    endpoint_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    scan_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("scans.id", ondelete="CASCADE"), index=True
+    )
+    endpoint_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("endpoints.id", ondelete="SET NULL"), nullable=True
+    )
     module: Mapped[str] = mapped_column(String(50))
     severity: Mapped[str] = mapped_column(String(10))
     title: Mapped[str] = mapped_column(String(500))
@@ -91,7 +97,9 @@ class ScanRequest(Base):
     __tablename__ = "scan_requests"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    scan_id: Mapped[int] = mapped_column(Integer, index=True)
+    scan_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("scans.id", ondelete="CASCADE"), index=True
+    )
     timestamp: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     method: Mapped[str] = mapped_column(String(10))
     url: Mapped[str] = mapped_column(String(2048))
@@ -102,7 +110,9 @@ class ScanRequest(Base):
     response_body: Mapped[str | None] = mapped_column(Text, nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     module: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    finding_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    finding_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("findings.id", ondelete="SET NULL"), nullable=True
+    )
 
 
 _engine = None
@@ -176,6 +186,13 @@ def _run_migrations(conn) -> None:
                 pass  # column already exists
 
 
+def _enable_sqlite_foreign_keys(dbapi_conn, connection_record):
+    """enable foreign key constraints for SQLite connections."""
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
+
 async def get_engine():
     global _engine
     if _engine is None:
@@ -189,6 +206,12 @@ async def get_engine():
             engine_kwargs["max_overflow"] = 20
         
         _engine = create_async_engine(db_url, **engine_kwargs)
+        
+        # enable foreign keys for SQLite
+        if not is_postgres:
+            from sqlalchemy.pool import Pool
+            event.listen(Pool, "connect", _enable_sqlite_foreign_keys)
+        
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
             # only run migrations on SQLite (PostgreSQL uses proper migrations)
