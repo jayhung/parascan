@@ -245,7 +245,7 @@ async def _run_scan_async(
 
 @app.command()
 def dashboard(
-    port: int = typer.Option(8000, "--port", "-p", help="Port to serve the dashboard on"),
+    port: int = typer.Option(4242, "--port", "-p", help="Port to serve the dashboard on"),
     host: str = typer.Option("127.0.0.1", "--host", help="Host to bind to"),
     database_url: Optional[str] = typer.Option(None, "--database-url", help="Database connection URL. Overrides DATABASE_URL env var."),
 ) -> None:

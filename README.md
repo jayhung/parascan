@@ -328,7 +328,7 @@ The dashboard shows:
 - Scan history with status and endpoint counts
 - Findings grouped by severity with request/response evidence
 - JSON export and standalone HTML report per scan
-- Served locally on `http://127.0.0.1:8000` by default
+- Served locally on `http://127.0.0.1:4242` by default
 
 ## Legal Disclaimer
 
