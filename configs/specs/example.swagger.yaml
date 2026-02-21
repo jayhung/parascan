@@ -1,0 +1,101 @@
+# example OpenAPI 3.0 spec for parascan endpoint discovery
+#
+# place your project's swagger/openapi spec in this folder, e.g.:
+#   configs/specs/myproject.swagger.yaml
+#
+# then reference it in your config:
+#   target:
+#     openapi: ./configs/specs/myproject.swagger.yaml
+
+openapi: "3.0.0"
+info:
+  title: Example API
+  version: "1.0.0"
+
+servers:
+  - url: https://example.com/api/v1
+
+paths:
+  /users:
+    get:
+      summary: list users
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 20
+    post:
+      summary: create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                email:
+                  type: string
+                  example: user@example.com
+                password:
+                  type: string
+                  example: password123
+
+  /users/{id}:
+    get:
+      summary: get user by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+    put:
+      summary: update user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                email:
+                  type: string
+                  example: updated@example.com
+    delete:
+      summary: delete user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+
+  /auth/login:
+    post:
+      summary: authenticate user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                email:
+                  type: string
+                  example: user@example.com
+                password:
+                  type: string
+                  example: password123
+
+  /auth/logout:
+    post:
+      summary: log out current user

@@ -5,11 +5,16 @@
 #
 # Use this file for complex setups with multiple auth methods,
 # custom scope rules, or per-endpoint overrides.
+#
+# Copy this file and name it after your project, e.g.:
+#   configs/myproject.yaml
+# Then run: parascan scan --config configs/myproject.yaml
 
 target:
   url: https://example.com
-  # openapi spec file for automatic endpoint discovery
-  # openapi: ./swagger.yaml
+  # openapi/swagger spec for automatic endpoint discovery
+  # place spec files in configs/specs/ and reference them here, e.g.:
+  # openapi: ./configs/specs/myproject.swagger.yaml
 
 auth:
   # uncomment the method you need:

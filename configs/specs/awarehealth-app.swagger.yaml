@@ -1,0 +1,91 @@
+openapi: "3.0.0"
+info:
+  title: Aware Health Web App
+  version: "1.0.0"
+
+servers:
+  - url: https://app.awarehealth.io
+
+paths:
+  /:
+    get:
+      summary: home page
+
+  /signin:
+    get:
+      summary: sign in page
+    post:
+      summary: sign in form submit
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              properties:
+                phone:
+                  type: string
+                  example: "+15555550100"
+
+  /signup:
+    get:
+      summary: sign up page
+    post:
+      summary: sign up form submit
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              properties:
+                phone:
+                  type: string
+                  example: "+15555550100"
+
+  /verify:
+    post:
+      summary: phone verification code submit
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              properties:
+                code:
+                  type: string
+                  example: "123456"
+
+  /dashboard:
+    get:
+      summary: main dashboard (authenticated)
+
+  /profile:
+    get:
+      summary: view profile (authenticated)
+    post:
+      summary: update profile (authenticated)
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              properties:
+                name:
+                  type: string
+                  example: Jane Doe
+                email:
+                  type: string
+                  example: jane@example.com
+
+  /logout:
+    post:
+      summary: log out current user
+
+  /forgot-password:
+    get:
+      summary: forgot password page
+    post:
+      summary: forgot password form submit
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              properties:
+                phone:
+                  type: string
+                  example: "+15555550100"
