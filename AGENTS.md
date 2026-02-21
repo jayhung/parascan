@@ -159,7 +159,7 @@ pytest
 
 - scan data stored in `~/.parascan/parascan.db`
 - no external API keys required (unless using external SSRF canaries)
-- dashboard runs on `http://127.0.0.1:8000` by default
+- dashboard runs on `http://127.0.0.1:4242` by default
 
 ## Common Tasks
 
