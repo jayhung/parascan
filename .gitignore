@@ -44,8 +44,10 @@ htmlcov/
 *.sqlite
 *.sqlite3
 
-# Config
-config.yaml
+# Configs (project-specific files may contain secrets)
+configs/*.yaml
+!configs/config.example.yaml
+# configs/specs/ is intentionally not ignored — swagger files are safe to commit
 cache/
 
 # Logs

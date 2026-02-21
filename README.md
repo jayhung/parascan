@@ -147,16 +147,35 @@ parascan dashboard --port 9000
 
 ## Configuration File
 
-For complex setups, use a YAML config file instead of CLI flags. See [`config.example.yaml`](config.example.yaml) for the full format.
+For complex setups, use a YAML config file instead of CLI flags. See [`configs/config.example.yaml`](configs/config.example.yaml) for the full format.
+
+Create one config file per project in the `configs/` folder — they are gitignored by default so secrets stay out of version control:
 
 ```bash
-parascan scan --config target.yaml
+cp configs/config.example.yaml configs/myproject.yaml
+# edit configs/myproject.yaml, then:
+parascan scan --config configs/myproject.yaml
+```
+
+If you have an OpenAPI/Swagger spec, place it in `configs/specs/` and reference it from your config. Spec files are tracked by git (they contain no secrets):
+
+```
+configs/
+├── myproject.yaml              # gitignored
+└── specs/
+    └── myproject.swagger.yaml  # tracked
+```
+
+```yaml
+target:
+  url: https://example.com
+  openapi: ./configs/specs/myproject.swagger.yaml
 ```
 
 CLI flags override config file values, so you can use a base config and tweak per-run:
 
 ```bash
-parascan scan --config target.yaml --modules sqli,xss --rate-limit 5
+parascan scan --config configs/myproject.yaml --modules sqli,xss --rate-limit 5
 ```
 
 ### Config File Format

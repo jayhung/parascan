@@ -1,0 +1,168 @@
+openapi: "3.0.0"
+info:
+  title: Aware Health API
+  version: "1.0.0"
+
+servers:
+  - url: https://api.awarehealth.io
+
+paths:
+  /graphql:
+    get:
+      summary: graphql introspection / playground
+    post:
+      summary: graphql query endpoint
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                query:
+                  type: string
+                  example: "{ __typename }"
+                variables:
+                  type: object
+                  example: {}
+
+  /auth/login:
+    post:
+      summary: authenticate with phone number
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                phone:
+                  type: string
+                  example: "+15555550100"
+
+  /auth/verify:
+    post:
+      summary: verify phone otp code
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                phone:
+                  type: string
+                  example: "+15555550100"
+                code:
+                  type: string
+                  example: "123456"
+
+  /auth/logout:
+    post:
+      summary: invalidate current session token
+
+  /auth/refresh:
+    post:
+      summary: refresh access token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                refresh_token:
+                  type: string
+                  example: token123
+
+  /users/me:
+    get:
+      summary: get current authenticated user
+    put:
+      summary: update current user profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                name:
+                  type: string
+                  example: Jane Doe
+                email:
+                  type: string
+                  example: jane@example.com
+
+  /users/{id}:
+    get:
+      summary: get user by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+
+  /appointments:
+    get:
+      summary: list appointments
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+    post:
+      summary: create appointment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                provider_id:
+                  type: integer
+                  example: 1
+                date:
+                  type: string
+                  example: "2026-03-01"
+                time:
+                  type: string
+                  example: "10:00"
+
+  /appointments/{id}:
+    get:
+      summary: get appointment by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+    delete:
+      summary: cancel appointment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+
+  /providers:
+    get:
+      summary: list available providers
+      parameters:
+        - name: specialty
+          in: query
+          schema:
+            type: string
+            example: therapy
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+
+  /providers/{id}:
+    get:
+      summary: get provider by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1

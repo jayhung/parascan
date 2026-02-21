@@ -85,7 +85,9 @@ tests/
 └── test_scanners/
     └── __init__.py
 
-config.example.yaml           # example target config
+configs/
+├── config.example.yaml       # example target config (copy and rename per project)
+└── specs/                    # openapi/swagger specs (tracked, safe to commit)
 pyproject.toml                # dependencies, metadata, CLI entry point
 requirements.txt              # auto-generated from pyproject.toml
 README.md
