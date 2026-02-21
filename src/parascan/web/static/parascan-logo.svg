@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g filter="url(#glow)" stroke="#06b6d4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- magnifying glass ring -->
+    <circle cx="48" cy="48" r="34" stroke-width="7"/>
+    <!-- magnifying glass handle -->
+    <line x1="73" y1="73" x2="108" y2="108" stroke-width="10"/>
+
+    <!-- bug: antennae -->
+    <line x1="39" y1="24" x2="32" y2="15" stroke-width="3"/>
+    <line x1="57" y1="24" x2="64" y2="15" stroke-width="3"/>
+    <!-- antenna tips -->
+    <circle cx="31" cy="14" r="2.5" fill="#06b6d4" stroke-width="0"/>
+    <circle cx="65" cy="14" r="2.5" fill="#06b6d4" stroke-width="0"/>
+
+    <!-- bug head: rounded top -->
+    <path d="M36 30 Q36 22 48 22 Q60 22 60 30 L60 36 Q60 40 48 40 Q36 40 36 36 Z" stroke-width="3"/>
+
+    <!-- bug body: shield shape -->
+    <path d="M33 42 Q33 38 38 38 L58 38 Q63 38 63 42 L63 60 Q63 72 48 78 Q33 72 33 60 Z" stroke-width="3"/>
+
+    <!-- lightning bolt inside shield -->
+    <polyline points="51,45 45,57 50,57 45,72" stroke-width="3" fill="none"/>
+
+    <!-- bug legs left -->
+    <line x1="33" y1="46" x2="20" y2="40" stroke-width="2.5"/>
+    <line x1="33" y1="54" x2="20" y2="54" stroke-width="2.5"/>
+    <line x1="33" y1="62" x2="20" y2="70" stroke-width="2.5"/>
+
+    <!-- bug legs right -->
+    <line x1="63" y1="46" x2="76" y2="40" stroke-width="2.5"/>
+    <line x1="63" y1="54" x2="76" y2="54" stroke-width="2.5"/>
+    <line x1="63" y1="62" x2="76" y2="70" stroke-width="2.5"/>
+  </g>
+</svg>

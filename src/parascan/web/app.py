@@ -6,11 +6,15 @@ import pathlib
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 app = FastAPI(title="parascan dashboard")
 
 TEMPLATE_DIR = pathlib.Path(__file__).parent / "templates"
+STATIC_DIR = pathlib.Path(__file__).parent / "static"
+
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 
