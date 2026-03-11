@@ -61,7 +61,12 @@ async def scan_detail(request: Request, scan_id: int):
 
     # group by SOC 2 criteria
     from parascan.core.reporter import SOC2_CRITERIA_DESCRIPTIONS, SOC2_REMEDIATION_TIMELINES
-    from parascan.core.state import get_scan_request_count, get_scan_event_count, get_scan_request_stats
+    from parascan.core.state import (
+        get_scan_request_count,
+        get_scan_event_count,
+        get_scan_request_stats,
+        get_scan_requests,
+    )
 
     criteria_grouped: dict[str, list] = {}
     for f in findings:
@@ -71,6 +76,7 @@ async def scan_detail(request: Request, scan_id: int):
     request_count = await get_scan_request_count(scan_id)
     event_count = await get_scan_event_count(scan_id)
     request_stats = await get_scan_request_stats(scan_id)
+    scan_requests = await get_scan_requests(scan_id, limit=500)
 
     # compute scan duration
     duration_str = ""
@@ -94,6 +100,7 @@ async def scan_detail(request: Request, scan_id: int):
         "request_stats": request_stats,
         "duration_str": duration_str,
         "remediation_timelines": SOC2_REMEDIATION_TIMELINES,
+        "scan_requests": scan_requests,
     })
 
 
