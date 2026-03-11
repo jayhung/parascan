@@ -18,6 +18,7 @@ from parascan.core.config import TargetConfig
 from parascan.core.db import ScanStatus, Severity
 from parascan.core.fingerprint import fingerprint_target, format_fingerprint
 from parascan.core.proxy import ProxyManager
+from parascan.core.soft404 import Soft404Detector
 from parascan.core.rate_limiter import RateLimiter
 from parascan.core.scope import ScopeEnforcer
 from parascan.core.db import get_session
@@ -212,6 +213,7 @@ async def _discover_endpoints(
     config: TargetConfig,
     scope: ScopeEnforcer,
     scan_id: int,
+    soft404: Soft404Detector | None = None,
 ) -> list[dict[str, Any]]:
     """discover endpoints via crawling, openapi import, or fallback."""
     from parascan.core.state import save_scan_event
@@ -247,7 +249,7 @@ async def _discover_endpoints(
     # brute-force common directories/paths
     from parascan.discovery.directory_brute import brute_force_directories
 
-    bruted = await brute_force_directories(client, config.url, scope, scan_id=scan_id)
+    bruted = await brute_force_directories(client, config.url, scope, scan_id=scan_id, soft404=soft404)
     new_from_brute = 0
     for ep in bruted:
         if not any(e["url"] == ep["url"] and e["method"] == ep["method"] for e in endpoints):
@@ -343,10 +345,16 @@ async def run_scan(
             if fp_str != "No fingerprint data detected":
                 console.print(f"[cyan]{fp_str}[/cyan]")
 
-            # discover endpoints
+            # calibrate soft-404 detector
             _current_module.set("discovery")
+            soft404 = Soft404Detector()
+            await soft404.calibrate(client, config.url)
+            if soft404._calibrated:
+                console.print("[dim]Soft-404 baseline captured[/dim]")
+
+            # discover endpoints
             console.print("[dim]Discovering endpoints...[/dim]")
-            endpoints = await _discover_endpoints(client, config, scope, scan_id)
+            endpoints = await _discover_endpoints(client, config, scope, scan_id, soft404=soft404)
             saved_ids = await save_endpoints(scan_id, endpoints)
             await update_scan_progress(scan_id, len(endpoints), 0)
             console.print(f"[green]Found {len(endpoints)} endpoint(s)[/green]")
@@ -359,6 +367,14 @@ async def run_scan(
         # select scanners
         scanner_classes = _select_scanners(config)
         scanners = [cls() for cls in scanner_classes]
+
+        # inject soft-404 detector into scanners that support it
+        if not resume:
+            from parascan.scanners.info_disclosure import InfoDisclosureScanner
+            for s in scanners:
+                if isinstance(s, InfoDisclosureScanner):
+                    s.soft404 = soft404
+
         console.print(
             f"[dim]Running {len(scanners)} scanner(s) against {len(ep_dicts)} endpoint(s)[/dim]"
         )

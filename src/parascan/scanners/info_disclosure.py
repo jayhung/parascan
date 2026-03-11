@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 import yaml
 
+from parascan.core.soft404 import Soft404Detector
 from parascan.scanners.base import BaseScanner, ScanResult
 
 
@@ -105,6 +106,10 @@ class InfoDisclosureScanner(BaseScanner):
     module_name = "info-disclosure"
     description = "Debug endpoints, stack traces, version headers, and source maps"
 
+    def __init__(self) -> None:
+        super().__init__()
+        self.soft404: Soft404Detector | None = None
+
     async def scan(
         self, client: httpx.AsyncClient, endpoint: dict[str, Any]
     ) -> list[ScanResult]:
@@ -147,8 +152,10 @@ class InfoDisclosureScanner(BaseScanner):
                     soc2_criteria=SOC2,
                 ))
             elif len(body) > 50 and path not in ("/robots.txt", "/crossdomain.xml"):
+                # skip if the response matches the soft-404 baseline (SPA catch-all)
+                if self.soft404 and self.soft404.is_soft_404(resp):
+                    continue
                 # non-empty response on sensitive path without specific sig
-                # only flag clearly sensitive paths
                 if path in ("/.env", "/.git/config", "/.git/HEAD", "/.htpasswd"):
                     results.append(ScanResult(
                         module=self.module_name,
