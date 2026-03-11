@@ -45,12 +45,6 @@ SECURITY_HEADERS = {
         ),
         "soc2": "CC6.8",
     },
-    "X-XSS-Protection": {
-        "severity": "low",
-        "description": "X-XSS-Protection header is missing (legacy, but still useful for older browsers).",
-        "remediation": "Add 'X-XSS-Protection: 1; mode=block' for legacy browser protection.",
-        "soc2": "CC6.8",
-    },
     "Referrer-Policy": {
         "severity": "low",
         "description": "Referrer-Policy header is missing. Referrer information may leak to third parties.",
@@ -89,6 +83,11 @@ class SecurityHeadersScanner(BaseScanner):
     module_name = "headers"
     description = "Security headers and CORS misconfiguration checks"
 
+    def __init__(self) -> None:
+        super().__init__()
+        # track reported titles across endpoints to avoid duplicates
+        self._reported: set[str] = set()
+
     async def scan(
         self, client: httpx.AsyncClient, endpoint: dict[str, Any]
     ) -> list[ScanResult]:
@@ -101,11 +100,15 @@ class SecurityHeadersScanner(BaseScanner):
 
         # check missing security headers
         for header, info in SECURITY_HEADERS.items():
+            title = f"Missing security header: {header}"
+            if title in self._reported:
+                continue
             if header.lower() not in {k.lower() for k in resp.headers}:
+                self._reported.add(title)
                 results.append(ScanResult(
                     module=self.module_name,
                     severity=info["severity"],
-                    title=f"Missing security header: {header}",
+                    title=title,
                     description=info["description"],
                     evidence=f"Header '{header}' not found in response",
                     request_data=self._format_request("GET", url),
@@ -116,12 +119,15 @@ class SecurityHeadersScanner(BaseScanner):
 
         # check CORS misconfiguration
         cors_result = await self._check_cors(client, url)
-        if cors_result:
+        if cors_result and cors_result.title not in self._reported:
+            self._reported.add(cors_result.title)
             results.append(cors_result)
 
         # check for information disclosure headers
-        info_results = self._check_info_disclosure(resp)
-        results.extend(info_results)
+        for r in self._check_info_disclosure(resp):
+            if r.title not in self._reported:
+                self._reported.add(r.title)
+                results.append(r)
 
         return results
 
@@ -176,7 +182,7 @@ class SecurityHeadersScanner(BaseScanner):
         return None
 
     def _check_info_disclosure(self, resp: httpx.Response) -> list[ScanResult]:
-        """check for headers that leak server info."""
+        """check for headers that leak server info or are deprecated."""
         results: list[ScanResult] = []
         disclosure_headers = {
             "Server": "Server software version disclosed",
@@ -197,5 +203,27 @@ class SecurityHeadersScanner(BaseScanner):
                     remediation=INFO_REMEDIATION,
                     soc2_criteria="CC7.1",
                 ))
+
+        # X-XSS-Protection is deprecated — flag its presence, not its absence
+        xss_prot = resp.headers.get("X-XSS-Protection")
+        if xss_prot is not None:
+            results.append(ScanResult(
+                module=self.module_name,
+                severity="info",
+                title="Deprecated header present: X-XSS-Protection",
+                description=(
+                    f"X-XSS-Protection is set to '{xss_prot}'. This header is deprecated "
+                    f"and ignored by all modern browsers. Chrome removed its XSS Auditor "
+                    f"in v78 (2019), and Firefox never implemented it. In some edge cases "
+                    f"the auditor could be exploited to cause XSS via selective script blocking."
+                ),
+                evidence=f"X-XSS-Protection: {xss_prot}",
+                remediation=(
+                    "Remove the X-XSS-Protection header (or set it to '0') and rely on "
+                    "a strong Content-Security-Policy instead. CSP provides comprehensive "
+                    "XSS protection across all modern browsers."
+                ),
+                soc2_criteria="CC6.8",
+            ))
 
         return results
