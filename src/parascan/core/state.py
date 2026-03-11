@@ -6,7 +6,9 @@ import datetime
 
 from sqlalchemy import select, update
 
-from parascan.core.db import Endpoint, Finding, Scan, ScanRequest, ScanStatus, get_session
+from parascan.core.db import (
+    Endpoint, Finding, Scan, ScanEvent, ScanRequest, ScanStatus, get_session,
+)
 
 
 async def create_scan(target_url: str, config_json: dict | None = None) -> int:
@@ -268,3 +270,54 @@ async def get_scan_request_stats(scan_id: int) -> dict:
         "by_module": by_module,
         "by_status": status_ranges,
     }
+
+
+# --- scan events ---
+
+
+async def save_scan_event(
+    scan_id: int,
+    level: str,
+    category: str,
+    message: str,
+    detail: str | None = None,
+) -> None:
+    """persist a diagnostic event for a scan."""
+    session = await get_session()
+    async with session.begin():
+        session.add(ScanEvent(
+            scan_id=scan_id,
+            level=level,
+            category=category,
+            message=message,
+            detail=detail,
+        ))
+    await session.close()
+
+
+async def get_scan_events(scan_id: int) -> list[ScanEvent]:
+    """get all events for a scan, ordered by time."""
+    session = await get_session()
+    result = await session.execute(
+        select(ScanEvent)
+        .where(ScanEvent.scan_id == scan_id)
+        .order_by(ScanEvent.id)
+    )
+    events = list(result.scalars().all())
+    await session.close()
+    return events
+
+
+async def get_scan_event_count(scan_id: int) -> int:
+    """get total number of events for a scan."""
+    from sqlalchemy import func as sql_func
+
+    session = await get_session()
+    result = await session.execute(
+        select(sql_func.count())
+        .select_from(ScanEvent)
+        .where(ScanEvent.scan_id == scan_id)
+    )
+    count = result.scalar() or 0
+    await session.close()
+    return count

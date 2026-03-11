@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import pathlib
 import sys
 from typing import Optional
@@ -74,6 +75,20 @@ def _show_disclaimer(target: str) -> None:
     _save_disclaimer(target)
 
 
+def _configure_logging(verbose: bool = False) -> None:
+    """set up logging for parascan — warnings always visible, info with -v."""
+    level = logging.INFO if verbose else logging.WARNING
+    logging.basicConfig(
+        level=level,
+        format="%(name)s: %(message)s",
+        handlers=[logging.StreamHandler(sys.stderr)],
+        force=True,
+    )
+    # keep third-party loggers quiet
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+
 @app.command()
 def scan(
     url: Optional[str] = typer.Argument(None, help="Target URL to scan"),
@@ -106,10 +121,12 @@ def scan(
     test_unauth: bool = typer.Option(False, "--test-unauth", help="Test endpoints without auth to detect broken access control"),
     findings_only: bool = typer.Option(False, "--findings-only", help="Skip request history logging for a lighter scan"),
     database_url: Optional[str] = typer.Option(None, "--database-url", help="Database connection URL (postgresql:// or sqlite://). Overrides DATABASE_URL env var."),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed discovery and fingerprint logging"),
 ) -> None:
     """Run a penetration test against a web application."""
     from parascan.core.db import set_database_url
-    
+
+    _configure_logging(verbose)
     set_database_url(database_url)
     if resume:
         # resume mode doesn't need a URL
@@ -148,6 +165,10 @@ def scan(
     if not url:
         console.print("[red]Error: no target URL found.[/red]")
         raise typer.Exit(1)
+
+    # auto-prepend https:// if no protocol given
+    if not url.startswith(("http://", "https://")):
+        url = f"https://{url}"
 
     _show_disclaimer(url)
 

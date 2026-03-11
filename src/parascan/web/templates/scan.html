@@ -623,6 +623,9 @@
             <button class="tab-btn" data-tab="history">
                 History <span class="count">{{ request_count }}</span>
             </button>
+            <button class="tab-btn" data-tab="diagnostics">
+                Diagnostics <span class="count">{{ event_count }}</span>
+            </button>
         </div>
 
         <!-- findings tab -->
@@ -698,6 +701,27 @@
                 <div class="history-empty">Click the History tab to load request data.</div>
             </div>
         </div>
+
+        <!-- diagnostics tab -->
+        <div id="tab-diagnostics" class="tab-panel">
+            <p style="color:#94a3b8; margin:1rem 0 0.5rem; font-size:0.85rem;">
+                Diagnostic events from fingerprinting, discovery, and scanning.
+            </p>
+            <div class="history-filters">
+                <select id="diag-level">
+                    <option value="">All levels</option>
+                    <option value="error">Error</option>
+                    <option value="warning">Warning</option>
+                    <option value="info">Info</option>
+                </select>
+                <select id="diag-category">
+                    <option value="">All categories</option>
+                </select>
+            </div>
+            <div id="diagnostics-content">
+                <div class="history-empty">Click the Diagnostics tab to load events.</div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -706,6 +730,7 @@
         const tabs = document.querySelectorAll('.tab-btn');
         const panels = document.querySelectorAll('.tab-panel');
         let historyLoaded = false;
+        let diagnosticsLoaded = false;
 
         tabs.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -717,6 +742,10 @@
                 if (btn.dataset.tab === 'history' && !historyLoaded) {
                     historyLoaded = true;
                     loadHistory();
+                }
+                if (btn.dataset.tab === 'diagnostics' && !diagnosticsLoaded) {
+                    diagnosticsLoaded = true;
+                    loadDiagnostics();
                 }
             });
         });
@@ -859,6 +888,66 @@
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(applyFilters, 300);
         });
+
+        // --- diagnostics tab ---
+        let allEvents = [];
+
+        const levelColors = {
+            error: 'color:#f87171;font-weight:600',
+            warning: 'color:#fde68a;font-weight:600',
+            info: 'color:#94a3b8',
+        };
+
+        function renderEvents(events) {
+            if (events.length === 0) {
+                return '<div class="history-empty">No diagnostic events for this scan.</div>';
+            }
+            let html = '<table class="history-table"><thead><tr>' +
+                '<th>Time</th><th>Level</th><th>Category</th><th>Message</th>' +
+                '</tr></thead><tbody>';
+            events.forEach(e => {
+                const time = e.timestamp ? e.timestamp.split('T')[1].split('.')[0] : '';
+                const style = levelColors[e.level] || '';
+                html += '<tr>' +
+                    '<td>' + escapeHtml(time) + '</td>' +
+                    '<td style="' + style + '">' + escapeHtml(e.level) + '</td>' +
+                    '<td>' + escapeHtml(e.category) + '</td>' +
+                    '<td>' + escapeHtml(e.message) +
+                    (e.detail ? '<br><span style="color:#64748b;font-size:0.8rem">' + escapeHtml(e.detail) + '</span>' : '') +
+                    '</td></tr>';
+            });
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function applyDiagFilters() {
+            const levelFilter = document.getElementById('diag-level').value;
+            const catFilter = document.getElementById('diag-category').value;
+            let filtered = allEvents;
+            if (levelFilter) filtered = filtered.filter(e => e.level === levelFilter);
+            if (catFilter) filtered = filtered.filter(e => e.category === catFilter);
+            document.getElementById('diagnostics-content').innerHTML = renderEvents(filtered);
+        }
+
+        async function loadDiagnostics() {
+            const resp = await fetch('/scan/' + scanId + '/events/json');
+            const data = await resp.json();
+            allEvents = data.events;
+
+            const categories = [...new Set(allEvents.map(e => e.category).filter(Boolean))];
+            const sel = document.getElementById('diag-category');
+            categories.sort().forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                sel.appendChild(opt);
+            });
+
+            applyDiagFilters();
+        }
+
+        document.getElementById('diag-level').addEventListener('change', applyDiagFilters);
+        document.getElementById('diag-category').addEventListener('change', applyDiagFilters);
     })();
     </script>
 </body>

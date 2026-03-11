@@ -71,11 +71,12 @@ class RequestLogger:
     async def _on_request(self, request: httpx.Request) -> None:
         """capture request details before it is sent."""
         body = None
-        if request.content:
-            try:
-                body = request.content.decode("utf-8", errors="replace")[:_MAX_BODY_SIZE]
-            except Exception:
-                body = "<binary>"
+        try:
+            raw = request.content
+            if raw:
+                body = raw.decode("utf-8", errors="replace")[:_MAX_BODY_SIZE]
+        except Exception:
+            body = None
 
         headers = "\n".join(f"{k}: {v}" for k, v in request.headers.items())
         self._pending_starts[id(request)] = (
@@ -210,22 +211,53 @@ async def _discover_endpoints(
     client: httpx.AsyncClient,
     config: TargetConfig,
     scope: ScopeEnforcer,
+    scan_id: int,
 ) -> list[dict[str, Any]]:
     """discover endpoints via crawling, openapi import, or fallback."""
+    from parascan.core.state import save_scan_event
+
     endpoints: list[dict[str, Any]] = []
 
     if config.openapi:
         from parascan.discovery.openapi import parse_openapi_spec
 
-        endpoints.extend(parse_openapi_spec(config.openapi, config.url))
+        spec_eps = parse_openapi_spec(config.openapi, config.url)
+        endpoints.extend(spec_eps)
+        console.print(f"[dim]  openapi: {len(spec_eps)} endpoint(s)[/dim]")
+        await save_scan_event(
+            scan_id, "info", "discovery.openapi",
+            f"parsed {len(spec_eps)} endpoint(s) from OpenAPI spec",
+        )
 
-    # always crawl the target for additional endpoints
+    # crawl the target for additional endpoints
     from parascan.discovery.crawler import crawl
 
-    crawled = await crawl(client, config.url, scope, max_pages=50)
+    crawled = await crawl(client, config.url, scope, scan_id=scan_id, max_pages=50, max_depth=5)
+    new_from_crawl = 0
     for ep in crawled:
         if not any(e["url"] == ep["url"] and e["method"] == ep["method"] for e in endpoints):
             endpoints.append(ep)
+            new_from_crawl += 1
+    console.print(f"[dim]  crawler: {new_from_crawl} endpoint(s)[/dim]")
+    await save_scan_event(
+        scan_id, "info", "discovery.crawl",
+        f"crawler discovered {new_from_crawl} endpoint(s)",
+    )
+
+    # brute-force common directories/paths
+    from parascan.discovery.directory_brute import brute_force_directories
+
+    bruted = await brute_force_directories(client, config.url, scope, scan_id=scan_id)
+    new_from_brute = 0
+    for ep in bruted:
+        if not any(e["url"] == ep["url"] and e["method"] == ep["method"] for e in endpoints):
+            endpoints.append(ep)
+            new_from_brute += 1
+    console.print(f"[dim]  brute-force: {new_from_brute} endpoint(s)[/dim]")
+    await save_scan_event(
+        scan_id, "info", "discovery.brute",
+        f"brute-force discovered {new_from_brute} endpoint(s)",
+    )
 
     # if nothing found, at least scan the base url
     if not endpoints:
@@ -305,7 +337,7 @@ async def run_scan(
             # fingerprint
             _current_module.set("fingerprint")
             console.print("[dim]Fingerprinting target...[/dim]")
-            fp_data = await fingerprint_target(client, config.url)
+            fp_data = await fingerprint_target(client, config.url, scan_id=scan_id)
             fp_str = format_fingerprint(fp_data)
             await update_scan_fingerprint(scan_id, fp_str)
             if fp_str != "No fingerprint data detected":
@@ -314,7 +346,7 @@ async def run_scan(
             # discover endpoints
             _current_module.set("discovery")
             console.print("[dim]Discovering endpoints...[/dim]")
-            endpoints = await _discover_endpoints(client, config, scope)
+            endpoints = await _discover_endpoints(client, config, scope, scan_id)
             saved_ids = await save_endpoints(scan_id, endpoints)
             await update_scan_progress(scan_id, len(endpoints), 0)
             console.print(f"[green]Found {len(endpoints)} endpoint(s)[/green]")
@@ -622,7 +654,7 @@ async def run_auth_comparison(
         async with httpx.AsyncClient(**unauthed_kwargs) as unauthed_client:
             # discover endpoints
             console.print("[dim]Discovering endpoints...[/dim]")
-            endpoints = await _discover_endpoints(authed_client, config, scope)
+            endpoints = await _discover_endpoints(authed_client, config, scope, scan_id)
             saved_ids = await save_endpoints(scan_id, endpoints)
             await update_scan_progress(scan_id, len(endpoints), 0)
             console.print(f"[green]Found {len(endpoints)} endpoint(s)[/green]")
