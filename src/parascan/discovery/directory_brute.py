@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from parascan.core.scope import ScopeEnforcer
+from parascan.core.soft404 import Soft404Detector
 
 logger = logging.getLogger("parascan.discovery.dirbrute")
 
@@ -22,6 +23,7 @@ async def brute_force_directories(
     scan_id: int | None = None,
     wordlist_path: str | pathlib.Path | None = None,
     max_entries: int = 200,
+    soft404: Soft404Detector | None = None,
 ) -> list[dict[str, Any]]:
     """
     Try common directory/endpoint paths against the target.
@@ -57,6 +59,9 @@ async def brute_force_directories(
         try:
             resp = await client.get(url, follow_redirects=False)
             if resp.status_code not in (404, 405, 502, 503):
+                if soft404 and soft404.is_soft_404(resp):
+                    logger.debug("soft-404 filtered: %s", word)
+                    continue
                 logger.info("found: %s → HTTP %d", word, resp.status_code)
                 endpoints.append({
                     "url": url,
