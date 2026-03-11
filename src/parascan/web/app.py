@@ -61,7 +61,7 @@ async def scan_detail(request: Request, scan_id: int):
 
     # group by SOC 2 criteria
     from parascan.core.reporter import SOC2_CRITERIA_DESCRIPTIONS
-    from parascan.core.state import get_scan_request_count
+    from parascan.core.state import get_scan_request_count, get_scan_event_count
 
     criteria_grouped: dict[str, list] = {}
     for f in findings:
@@ -69,6 +69,7 @@ async def scan_detail(request: Request, scan_id: int):
             criteria_grouped.setdefault(f.soc2_criteria, []).append(f)
 
     request_count = await get_scan_request_count(scan_id)
+    event_count = await get_scan_event_count(scan_id)
 
     return templates.TemplateResponse("scan.html", {
         "request": request,
@@ -80,6 +81,7 @@ async def scan_detail(request: Request, scan_id: int):
         "soc2_criteria": SOC2_CRITERIA_DESCRIPTIONS,
         "criteria_grouped": criteria_grouped,
         "request_count": request_count,
+        "event_count": event_count,
     })
 
 
@@ -137,6 +139,28 @@ async def scan_history_json(
                 "response_body": r.response_body,
             }
             for r in requests
+        ],
+    })
+
+
+@app.get("/scan/{scan_id}/events/json")
+async def scan_events_json(scan_id: int):
+    """scan diagnostic events for the Diagnostics tab."""
+    from parascan.core.state import get_scan_events
+
+    events = await get_scan_events(scan_id)
+    return JSONResponse(content={
+        "total": len(events),
+        "events": [
+            {
+                "id": e.id,
+                "timestamp": e.timestamp.isoformat() if e.timestamp else None,
+                "level": e.level,
+                "category": e.category,
+                "message": e.message,
+                "detail": e.detail,
+            }
+            for e in events
         ],
     })
 

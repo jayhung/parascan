@@ -115,6 +115,21 @@ class ScanRequest(Base):
     )
 
 
+class ScanEvent(Base):
+    """diagnostic event log for scan operations (discovery, fingerprint, errors)."""
+    __tablename__ = "scan_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scan_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("scans.id", ondelete="CASCADE"), index=True
+    )
+    timestamp: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+    level: Mapped[str] = mapped_column(String(10))
+    category: Mapped[str] = mapped_column(String(50))
+    message: Mapped[str] = mapped_column(Text)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 _engine = None
 _session_factory = None
 
