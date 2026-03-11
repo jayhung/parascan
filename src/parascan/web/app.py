@@ -66,6 +66,7 @@ async def scan_detail(request: Request, scan_id: int):
         get_scan_event_count,
         get_scan_request_stats,
         get_scan_requests,
+        get_scan_events,
     )
 
     criteria_grouped: dict[str, list] = {}
@@ -77,6 +78,11 @@ async def scan_detail(request: Request, scan_id: int):
     event_count = await get_scan_event_count(scan_id)
     request_stats = await get_scan_request_stats(scan_id)
     scan_requests = await get_scan_requests(scan_id, limit=500)
+
+    # check for soft-404 detection (banner only, no per-row tagging)
+    all_events = await get_scan_events(scan_id)
+    soft404_events = [e for e in all_events if e.category == "soft404"]
+    soft404_summary = soft404_events[0].message if soft404_events else ""
 
     # compute scan duration
     duration_str = ""
@@ -101,6 +107,7 @@ async def scan_detail(request: Request, scan_id: int):
         "duration_str": duration_str,
         "remediation_timelines": SOC2_REMEDIATION_TIMELINES,
         "scan_requests": scan_requests,
+        "soft404_summary": soft404_summary,
     })
 
 

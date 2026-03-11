@@ -30,6 +30,7 @@ from parascan.core.state import (
     mark_endpoint_scanned,
     save_endpoints,
     save_finding,
+    save_scan_event,
     save_scan_requests,
     update_scan_fingerprint,
     update_scan_progress,
@@ -216,8 +217,6 @@ async def _discover_endpoints(
     soft404: Soft404Detector | None = None,
 ) -> list[dict[str, Any]]:
     """discover endpoints via crawling, openapi import, or fallback."""
-    from parascan.core.state import save_scan_event
-
     endpoints: list[dict[str, Any]] = []
 
     if config.openapi:
@@ -351,6 +350,10 @@ async def run_scan(
             await soft404.calibrate(client, config.url)
             if soft404._calibrated:
                 console.print("[dim]Soft-404 baseline captured[/dim]")
+                await save_scan_event(
+                    scan_id, "info", "soft404",
+                    soft404.summary,
+                )
 
             # discover endpoints
             console.print("[dim]Discovering endpoints...[/dim]")
@@ -424,6 +427,13 @@ async def run_scan(
             if endpoint_id:
                 await mark_endpoint_scanned(endpoint_id)
             await update_scan_progress(scan_id, len(ep_dicts), i + 1)
+
+        # log soft-404 filtering stats
+        if not resume and soft404._calibrated and soft404.filtered_count > 0:
+            await save_scan_event(
+                scan_id, "info", "soft404",
+                f"{soft404.filtered_count} response(s) filtered as soft-404 false positives",
+            )
 
         # flush any remaining logged requests
         await req_logger.flush()
