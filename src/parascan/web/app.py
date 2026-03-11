@@ -60,8 +60,8 @@ async def scan_detail(request: Request, scan_id: int):
         by_module[f.module] = by_module.get(f.module, 0) + 1
 
     # group by SOC 2 criteria
-    from parascan.core.reporter import SOC2_CRITERIA_DESCRIPTIONS
-    from parascan.core.state import get_scan_request_count, get_scan_event_count
+    from parascan.core.reporter import SOC2_CRITERIA_DESCRIPTIONS, SOC2_REMEDIATION_TIMELINES
+    from parascan.core.state import get_scan_request_count, get_scan_event_count, get_scan_request_stats
 
     criteria_grouped: dict[str, list] = {}
     for f in findings:
@@ -70,6 +70,15 @@ async def scan_detail(request: Request, scan_id: int):
 
     request_count = await get_scan_request_count(scan_id)
     event_count = await get_scan_event_count(scan_id)
+    request_stats = await get_scan_request_stats(scan_id)
+
+    # compute scan duration
+    duration_str = ""
+    if scan.started_at and scan.finished_at:
+        delta = scan.finished_at - scan.started_at
+        mins = int(delta.total_seconds() // 60)
+        secs = int(delta.total_seconds() % 60)
+        duration_str = f"{mins}m {secs}s" if mins else f"{secs}s"
 
     return templates.TemplateResponse("scan.html", {
         "request": request,
@@ -82,6 +91,9 @@ async def scan_detail(request: Request, scan_id: int):
         "criteria_grouped": criteria_grouped,
         "request_count": request_count,
         "event_count": event_count,
+        "request_stats": request_stats,
+        "duration_str": duration_str,
+        "remediation_timelines": SOC2_REMEDIATION_TIMELINES,
     })
 
 
@@ -95,12 +107,12 @@ async def scan_json(scan_id: int):
     return JSONResponse(content=json.loads(report))
 
 
-@app.get("/scan/{scan_id}/report", response_class=HTMLResponse)
+@app.get("/scan/{scan_id}/report")
 async def scan_report(scan_id: int):
-    """unified HTML report (includes SOC 2 compliance)."""
-    from parascan.core.reporter import generate_html_report
+    """redirect to scan detail view (report merged into scan view)."""
+    from fastapi.responses import RedirectResponse
 
-    return HTMLResponse(await generate_html_report(scan_id))
+    return RedirectResponse(url=f"/scan/{scan_id}")
 
 
 @app.get("/scan/{scan_id}/history/json")

@@ -158,12 +158,28 @@
 <body>
     <div class="container">
         <header>
-            <h1>
-                <img src="/static/parascan-logo.svg" width="48" height="48"
-                    style="display:inline-block;vertical-align:middle;margin-right:0.25rem">
-                <span>parascan</span> dashboard
+            <h1 style="display:flex;align-items:center">
+                <a href="/"
+                    style="color:inherit;text-decoration:none;display:inline-flex;align-items:center">
+                    <img src="/static/parascan-logo.svg" width="48" height="48"
+                        style="margin-right:0.25rem">
+                    <span>parascan</span>
+                </a>&nbsp;dashboard
             </h1>
-            <span class="version">v0.1.0</span>
+            <div style="display:flex;align-items:center;gap:1rem">
+                <button onclick="location.reload()"
+                    style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:0.4rem 0.75rem;
+                           border-radius:6px;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:0.35rem"
+                    onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#1e293b'">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+                        <path d="M21 3v5h-5"/>
+                    </svg>
+                    Refresh
+                </button>
+                <span class="version">v0.1.0</span>
+            </div>
         </header>
 
         {% if scans %}
@@ -190,7 +206,6 @@
                     <td>{{ scan.started_at.strftime('%Y-%m-%d %H:%M') if scan.started_at else '—' }}</td>
                     <td>
                         <a href="/scan/{{ scan.id }}">View</a> ·
-                        <a href="/scan/{{ scan.id }}/report">Report</a> ·
                         <a href="/scan/{{ scan.id }}/json">JSON</a>
                     </td>
                 </tr>

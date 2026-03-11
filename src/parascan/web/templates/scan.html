@@ -250,16 +250,41 @@
             font-family: monospace;
         }
 
+        .scan-stats {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .timeline {
+            color: #64748b;
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+        }
+
         .export-links {
             margin-top: 1rem;
         }
 
-        .export-links a {
+        .export-links a,
+        .export-links button {
             background: #1e293b;
             padding: 0.4rem 0.8rem;
             border-radius: 4px;
             font-size: 0.85rem;
             margin-right: 0.5rem;
+            color: #60a5fa;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            font-family: inherit;
+        }
+
+        .export-links a:hover,
+        .export-links button:hover {
+            background: #334155;
         }
 
         .exec-summary {
@@ -491,6 +516,93 @@
         .load-more:hover {
             background: #334155;
         }
+
+        @media print {
+            body {
+                background: white;
+                color: #1a1a1a;
+                padding: 0;
+                font-size: 11pt;
+            }
+
+            .container {
+                max-width: 100%;
+                padding: 0;
+            }
+
+            .breadcrumb,
+            .export-links,
+            .tabs,
+            #tab-history,
+            #tab-diagnostics,
+            .no-print {
+                display: none !important;
+            }
+
+            #tab-findings {
+                display: block !important;
+            }
+
+            h1 { color: #1a1a1a; }
+            h2 { color: #333; border-bottom-color: #ccc; }
+            p { color: #333; }
+            pre { background: #f5f5f5; border-color: #ddd; color: #333; }
+
+            .finding {
+                background: #fafafa;
+                border-color: #ddd;
+                break-inside: avoid;
+            }
+
+            .exec-summary,
+            .methodology,
+            .scan-stats {
+                background: #fafafa;
+                border-color: #ddd;
+            }
+
+            .exec-stat {
+                background: #f0f0f0;
+            }
+
+            .fingerprint {
+                background: #f5f5f5;
+                color: #333;
+            }
+
+            .chip {
+                background: #eee;
+                color: #555;
+            }
+
+            .remediation {
+                background: #f0faf0;
+                border-color: #4a4;
+            }
+
+            .remediation h4 { color: #2a7a2a; }
+            .remediation p { color: #333; }
+
+            .criteria-table td,
+            .criteria-table th {
+                border-bottom-color: #ddd;
+            }
+
+            summary { color: #2563eb; }
+
+            details[open] > summary {
+                margin-bottom: 0.25rem;
+            }
+
+            details {
+                break-inside: avoid;
+            }
+
+            a { color: #333; text-decoration: none; }
+
+            .meta { color: #666; }
+            .timeline { color: #666; }
+        }
     </style>
 </head>
 
@@ -611,8 +723,30 @@
             </tbody>
         </table>
 
+        {% if request_stats and request_stats.total %}
+        <h2>Scan Statistics</h2>
+        <div class="scan-stats">
+            <p><strong>{{ request_stats.total }}</strong> HTTP request(s) made during scan
+                {% if duration_str %}&mdash; duration: {{ duration_str }}{% endif %}</p>
+            <p style="margin-top:0.5rem">Responses:
+                {% set status_colors = {'2xx': '#4ade80', '3xx': '#60a5fa', '4xx': '#fde68a', '5xx': '#f87171', 'error': '#6b7280'} %}
+                {% for key in ['2xx', '3xx', '4xx', '5xx', 'error'] %}
+                {% set count = request_stats.by_status.get(key, 0) %}
+                {% if count %}
+                <span style="color:{{ status_colors[key] }};font-weight:600;margin-right:1rem">{{ key }}: {{ count }}</span>
+                {% endif %}
+                {% endfor %}
+            </p>
+            <p style="margin-top:0.5rem">By module:
+                {% for mod, count in request_stats.by_module.items()|sort %}
+                <span class="chip">{{ mod }}: {{ count }}</span>
+                {% endfor %}
+            </p>
+        </div>
+        {% endif %}
+
         <div class="export-links">
-            <a href="/scan/{{ scan.id }}/report">Full Report</a>
+            <button class="no-print" onclick="window.print()">Download PDF</button>
             <a href="/scan/{{ scan.id }}/json">Export JSON</a>
         </div>
 
@@ -665,6 +799,9 @@
                 <div class="remediation">
                     <h4>How to fix</h4>
                     <p>{{ f.remediation }}</p>
+                    {% if remediation_timelines and f.severity in remediation_timelines %}
+                    <p class="timeline"><strong>Remediation timeline:</strong> {{ remediation_timelines[f.severity] }}</p>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -948,6 +1085,22 @@
 
         document.getElementById('diag-level').addEventListener('change', applyDiagFilters);
         document.getElementById('diag-category').addEventListener('change', applyDiagFilters);
+
+        // expand all <details> before print, restore after
+        window.addEventListener('beforeprint', () => {
+            document.querySelectorAll('details').forEach(d => {
+                d._wasOpen = d.open;
+                d.open = true;
+            });
+        });
+        window.addEventListener('afterprint', () => {
+            document.querySelectorAll('details').forEach(d => {
+                if (d._wasOpen !== undefined) {
+                    d.open = d._wasOpen;
+                    delete d._wasOpen;
+                }
+            });
+        });
     })();
     </script>
 </body>
