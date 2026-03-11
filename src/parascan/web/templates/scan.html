@@ -755,6 +755,46 @@
         </div>
         {% endif %}
 
+        {% if scan_requests %}
+        <h2>Request History</h2>
+        <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:0.75rem;">
+            {% if request_count > scan_requests|length %}
+            Showing first {{ scan_requests|length }} of {{ request_count }} requests.
+            {% endif %}
+            Full request/response history available in JSON export:
+            <a href="/scan/{{ scan.id }}/json">/scan/{{ scan.id }}/json</a>
+        </p>
+        <table class="history-table history-print">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Module</th>
+                    <th>Method</th>
+                    <th>URL</th>
+                    <th>Status</th>
+                    <th>Duration</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in scan_requests %}
+                <tr>
+                    <td>{{ r.timestamp.strftime('%H:%M:%S') if r.timestamp else '—' }}</td>
+                    <td>{{ r.module or '—' }}</td>
+                    <td>{{ r.method or '—' }}</td>
+                    <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ r.url }}">{{ r.url[:80] }}{% if r.url and r.url|length > 80 %}…{% endif %}</td>
+                    <td class="status-{% if r.status_code %}{% if r.status_code < 300 %}2xx{% elif r.status_code < 400 %}3xx{% elif r.status_code < 500 %}4xx{% else %}5xx{% endif %}{% else %}err{% endif %}">{{ r.status_code or '—' }}</td>
+                    <td>{% if r.duration_ms is not none %}{{ r.duration_ms }}ms{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <h2>Request History</h2>
+        <p style="color:#64748b; font-size:0.85rem;">
+            No request history for this scan. Run without <code>--findings-only</code> to capture the full audit trail.
+        </p>
+        {% endif %}
+
         <div class="export-links">
             <button class="no-print" onclick="window.print()">Download PDF</button>
             <a href="/scan/{{ scan.id }}/json">Export JSON</a>
@@ -823,41 +863,6 @@
             <div style="text-align:center; padding:3rem; color:#64748b;">
                 <p>No vulnerabilities detected in this scan.</p>
             </div>
-            {% endif %}
-
-            {% if scan_requests %}
-            <h2>Request History</h2>
-            <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:0.75rem;">
-                {% if request_count > scan_requests|length %}
-                Showing first {{ scan_requests|length }} of {{ request_count }} requests.
-                {% endif %}
-                Full request/response history available in JSON export:
-                <a href="/scan/{{ scan.id }}/json">/scan/{{ scan.id }}/json</a>
-            </p>
-            <table class="history-table history-print">
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Module</th>
-                        <th>Method</th>
-                        <th>URL</th>
-                        <th>Status</th>
-                        <th>Duration</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in scan_requests %}
-                    <tr>
-                        <td>{{ r.timestamp.strftime('%H:%M:%S') if r.timestamp else '—' }}</td>
-                        <td>{{ r.module or '—' }}</td>
-                        <td>{{ r.method or '—' }}</td>
-                        <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ r.url }}">{{ r.url[:80] }}{% if r.url and r.url|length > 80 %}…{% endif %}</td>
-                        <td class="status-{% if r.status_code %}{% if r.status_code < 300 %}2xx{% elif r.status_code < 400 %}3xx{% elif r.status_code < 500 %}4xx{% else %}5xx{% endif %}{% else %}err{% endif %}">{{ r.status_code or '—' }}</td>
-                        <td>{% if r.duration_ms is not none %}{{ r.duration_ms }}ms{% else %}—{% endif %}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
             {% endif %}
         </div>
 
