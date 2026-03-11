@@ -30,6 +30,7 @@ class Soft404Detector:
     def __init__(self) -> None:
         self._calibrated = False
         self._baselines: list[tuple[int, int, str]] = []  # (status, length, hash)
+        self.filtered_count = 0
 
     async def calibrate(self, client: httpx.AsyncClient, base_url: str) -> None:
         """request random non-existent paths and record the response profile."""
@@ -60,6 +61,19 @@ class Soft404Detector:
             statuses, lengths,
         )
 
+    @property
+    def summary(self) -> str:
+        """human-readable description of the calibration result."""
+        if not self._calibrated:
+            return ""
+        statuses = sorted({b[0] for b in self._baselines})
+        avg_len = int(sum(b[1] for b in self._baselines) / len(self._baselines))
+        return (
+            f"Target returns HTTP {'/'.join(str(s) for s in statuses)} "
+            f"with ~{avg_len} bytes for non-existent paths (SPA or custom error page detected). "
+            f"Response fingerprinting was used to filter false positives."
+        )
+
     def is_soft_404(self, resp: httpx.Response) -> bool:
         """return True if the response looks like a soft-404 catch-all page."""
         if not self._calibrated:
@@ -75,12 +89,14 @@ class Soft404Detector:
 
             # exact content match — definite soft-404
             if resp_hash == base_hash:
+                self.filtered_count += 1
                 return True
 
             # length within tolerance — likely the same SPA shell with minor variance
             if base_len > 0:
                 ratio = abs(resp_len - base_len) / base_len
                 if ratio <= _LENGTH_TOLERANCE:
+                    self.filtered_count += 1
                     return True
 
         return False

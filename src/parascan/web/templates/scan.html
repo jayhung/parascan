@@ -250,6 +250,26 @@
             font-family: monospace;
         }
 
+        .soft404-banner {
+            background: #1a1a2e;
+            border: 1px solid #3b3b6b;
+            border-left: 4px solid #60a5fa;
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            margin: 1rem 0;
+        }
+
+        .soft404-banner strong {
+            color: #60a5fa;
+            font-size: 0.9rem;
+        }
+
+        .soft404-banner p {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+        }
+
         .scan-stats {
             background: #1e293b;
             border: 1px solid #334155;
@@ -554,6 +574,15 @@
                 break-inside: avoid;
             }
 
+            .soft404-banner {
+                background: #eef2ff;
+                border-color: #999;
+                border-left-color: #2563eb;
+            }
+
+            .soft404-banner strong { color: #1e40af; }
+            .soft404-banner p { color: #333; }
+
             .exec-summary,
             .methodology,
             .scan-stats {
@@ -694,6 +723,13 @@
         <div class="fingerprint">{{ scan.fingerprint }}</div>
         {% endif %}
 
+        {% if soft404_summary %}
+        <div class="soft404-banner">
+            <strong>Soft-404 detected</strong>
+            <p>{{ soft404_summary }}</p>
+        </div>
+        {% endif %}
+
         <h2>SOC 2 Compliance Summary</h2>
         <table class="criteria-table">
             <thead>
@@ -763,6 +799,12 @@
             {% endif %}
             Full request/response history available in JSON export:
             <a href="/scan/{{ scan.id }}/json">/scan/{{ scan.id }}/json</a>
+            {% if soft404_summary %}
+            <br>
+            <span style="color:#60a5fa;">Note:</span> Soft-404 detection was active for this scan.
+            Discovery requests may show HTTP 200 due to the SPA/catch-all returning
+            the same HTML shell for every route — these were filtered from findings.
+            {% endif %}
         </p>
         <table class="history-table history-print">
             <thead>
