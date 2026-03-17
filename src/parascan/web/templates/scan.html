@@ -250,6 +250,19 @@
             font-family: monospace;
         }
 
+        .soft404-tag {
+            display: inline-block;
+            background: #7c3aed;
+            color: #e9d5ff;
+            padding: 0.1rem 0.35rem;
+            border-radius: 3px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            margin-left: 0.35rem;
+            vertical-align: middle;
+            letter-spacing: 0.02em;
+        }
+
         .soft404-banner {
             background: #1a1a2e;
             border: 1px solid #3b3b6b;
@@ -583,6 +596,12 @@
             .soft404-banner strong { color: #1e40af; }
             .soft404-banner p { color: #333; }
 
+            .soft404-tag {
+                background: #7c3aed;
+                color: white;
+                font-size: 0.6rem;
+            }
+
             .exec-summary,
             .methodology,
             .scan-stats {
@@ -782,6 +801,9 @@
                 <span style="color:{{ status_colors[key] }};font-weight:600;margin-right:1rem">{{ key }}: {{ count }}</span>
                 {% endif %}
                 {% endfor %}
+                {% if soft404_count %}
+                <span style="color:#a78bfa;font-weight:600;margin-right:1rem">soft-404: {{ soft404_count }}</span>
+                {% endif %}
             </p>
             <p style="margin-top:0.5rem">By module:
                 {% for mod, count in request_stats.by_module.items()|sort %}
@@ -824,7 +846,7 @@
                     <td>{{ r.module or '—' }}</td>
                     <td>{{ r.method or '—' }}</td>
                     <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ r.url }}">{{ r.url[:80] }}{% if r.url and r.url|length > 80 %}…{% endif %}</td>
-                    <td class="status-{% if r.status_code %}{% if r.status_code < 300 %}2xx{% elif r.status_code < 400 %}3xx{% elif r.status_code < 500 %}4xx{% else %}5xx{% endif %}{% else %}err{% endif %}">{{ r.status_code or '—' }}</td>
+                    <td class="status-{% if r.status_code %}{% if r.status_code < 300 %}2xx{% elif r.status_code < 400 %}3xx{% elif r.status_code < 500 %}4xx{% else %}5xx{% endif %}{% else %}err{% endif %}">{{ r.status_code or '—' }}{% if r.is_soft_404 %}<span class="soft404-tag">SOFT 404</span>{% endif %}</td>
                     <td>{% if r.duration_ms is not none %}{{ r.duration_ms }}ms{% else %}—{% endif %}</td>
                 </tr>
                 {% endfor %}
@@ -923,6 +945,7 @@
                     <option value="300">3xx</option>
                     <option value="400">4xx</option>
                     <option value="500">5xx</option>
+                    <option value="soft404">Soft 404</option>
                 </select>
                 <input id="hist-search" type="text" placeholder="Filter URL...">
             </div>
@@ -1012,12 +1035,13 @@
                 const time = r.timestamp ? r.timestamp.split('T')[1].split('.')[0] : '';
                 const cls = statusClass(r.status_code);
                 const findingCls = r.finding_id ? ' has-finding' : '';
+                const soft404Tag = r.is_soft_404 ? '<span class="soft404-tag">SOFT 404</span>' : '';
                 html += '<tr class="hist-row' + findingCls + '" data-idx="' + i + '">' +
                     '<td>' + escapeHtml(time) + '</td>' +
                     '<td>' + escapeHtml(r.module) + '</td>' +
                     '<td>' + escapeHtml(r.method) + '</td>' +
                     '<td>' + escapeHtml(r.url) + '</td>' +
-                    '<td class="' + cls + '">' + (r.status_code || '—') + '</td>' +
+                    '<td class="' + cls + '">' + (r.status_code || '—') + soft404Tag + '</td>' +
                     '<td>' + (r.duration_ms != null ? r.duration_ms + 'ms' : '—') + '</td>' +
                     '</tr>' +
                     '<tr class="hist-detail" id="detail-' + i + '" style="display:none">' +
@@ -1050,8 +1074,12 @@
                 filtered = filtered.filter(r => r.module === moduleFilter);
             }
             if (statusFilter) {
-                const base = parseInt(statusFilter);
-                filtered = filtered.filter(r => r.status_code >= base && r.status_code < base + 100);
+                if (statusFilter === 'soft404') {
+                    filtered = filtered.filter(r => r.is_soft_404);
+                } else {
+                    const base = parseInt(statusFilter);
+                    filtered = filtered.filter(r => r.status_code >= base && r.status_code < base + 100);
+                }
             }
             if (urlFilter) {
                 filtered = filtered.filter(r => r.url && r.url.toLowerCase().includes(urlFilter));

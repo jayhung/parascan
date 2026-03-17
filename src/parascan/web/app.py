@@ -79,10 +79,20 @@ async def scan_detail(request: Request, scan_id: int):
     request_stats = await get_scan_request_stats(scan_id)
     scan_requests = await get_scan_requests(scan_id, limit=500)
 
-    # check for soft-404 detection (banner only, no per-row tagging)
+    # soft-404 detection: extract baselines for per-row tagging
+    from parascan.core.soft404 import check_soft_404
+
     all_events = await get_scan_events(scan_id)
     soft404_events = [e for e in all_events if e.category == "soft404"]
     soft404_summary = soft404_events[0].message if soft404_events else ""
+    soft404_baselines = soft404_events[0].detail if soft404_events else None
+
+    # tag each request with soft-404 status
+    soft404_count = 0
+    for r in scan_requests:
+        r.is_soft_404 = check_soft_404(soft404_baselines, r.status_code, r.response_body)
+        if r.is_soft_404:
+            soft404_count += 1
 
     # compute scan duration
     duration_str = ""
@@ -108,6 +118,7 @@ async def scan_detail(request: Request, scan_id: int):
         "remediation_timelines": SOC2_REMEDIATION_TIMELINES,
         "scan_requests": scan_requests,
         "soft404_summary": soft404_summary,
+        "soft404_count": soft404_count,
     })
 
 
@@ -138,12 +149,20 @@ async def scan_history_json(
     offset: int = 0,
 ):
     """paginated request history for the History tab."""
-    from parascan.core.state import get_scan_requests, get_scan_request_count
+    from parascan.core.soft404 import check_soft_404
+    from parascan.core.state import (
+        get_scan_requests, get_scan_request_count, get_scan_events,
+    )
 
     requests = await get_scan_requests(
         scan_id, module=module, status_code=status_code, limit=limit, offset=offset
     )
     total = await get_scan_request_count(scan_id)
+
+    # load soft-404 baselines once for this scan
+    events = await get_scan_events(scan_id)
+    soft404_events = [e for e in events if e.category == "soft404"]
+    baselines = soft404_events[0].detail if soft404_events else None
 
     return JSONResponse(content={
         "total": total,
@@ -163,6 +182,7 @@ async def scan_history_json(
                 "request_body": r.request_body,
                 "response_headers": r.response_headers,
                 "response_body": r.response_body,
+                "is_soft_404": check_soft_404(baselines, r.status_code, r.response_body),
             }
             for r in requests
         ],
