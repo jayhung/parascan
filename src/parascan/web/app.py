@@ -87,10 +87,13 @@ async def scan_detail(request: Request, scan_id: int):
     soft404_summary = soft404_events[0].message if soft404_events else ""
     soft404_baselines = soft404_events[0].detail if soft404_events else None
 
-    # tag each request with soft-404 status
+    # tag each request with soft-404 status (base URL is exempt)
     soft404_count = 0
     for r in scan_requests:
-        r.is_soft_404 = check_soft_404(soft404_baselines, r.status_code, r.response_body)
+        r.is_soft_404 = check_soft_404(
+            soft404_baselines, r.status_code, r.response_body,
+            url=r.url, target_url=scan.target_url,
+        )
         if r.is_soft_404:
             soft404_count += 1
 
@@ -149,17 +152,24 @@ async def scan_history_json(
     offset: int = 0,
 ):
     """paginated request history for the History tab."""
+    from parascan.core.db import Scan
     from parascan.core.soft404 import check_soft_404
     from parascan.core.state import (
-        get_scan_requests, get_scan_request_count, get_scan_events,
+        get_scan_requests, get_scan_request_count, get_scan_events, get_session,
     )
+    from sqlalchemy import select
 
     requests = await get_scan_requests(
         scan_id, module=module, status_code=status_code, limit=limit, offset=offset
     )
     total = await get_scan_request_count(scan_id)
 
-    # load soft-404 baselines once for this scan
+    # load scan target URL and soft-404 baselines
+    session = await get_session()
+    result = await session.execute(select(Scan.target_url).where(Scan.id == scan_id))
+    target_url = result.scalar_one_or_none()
+    await session.close()
+
     events = await get_scan_events(scan_id)
     soft404_events = [e for e in events if e.category == "soft404"]
     baselines = soft404_events[0].detail if soft404_events else None
@@ -182,7 +192,10 @@ async def scan_history_json(
                 "request_body": r.request_body,
                 "response_headers": r.response_headers,
                 "response_body": r.response_body,
-                "is_soft_404": check_soft_404(baselines, r.status_code, r.response_body),
+                "is_soft_404": check_soft_404(
+                    baselines, r.status_code, r.response_body,
+                    url=r.url, target_url=target_url,
+                ),
             }
             for r in requests
         ],

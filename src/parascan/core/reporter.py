@@ -75,7 +75,10 @@ async def generate_json_report(scan_id: int) -> str:
                 "status_code": r.status_code,
                 "duration_ms": r.duration_ms,
                 "finding_id": r.finding_id,
-                "is_soft_404": check_soft_404(baselines, r.status_code, r.response_body),
+                "is_soft_404": check_soft_404(
+                    baselines, r.status_code, r.response_body,
+                    url=r.url, target_url=scan.target_url,
+                ),
             }
             for r in requests
         ],
@@ -135,7 +138,10 @@ async def generate_html_report(scan_id: int) -> str:
         all_requests = await get_scan_requests(scan_id)
         soft404_count = sum(
             1 for r in all_requests
-            if check_soft_404(baselines, r.status_code, r.response_body)
+            if check_soft_404(
+                baselines, r.status_code, r.response_body,
+                url=r.url, target_url=scan.target_url,
+            )
         )
 
     severity_colors = {
