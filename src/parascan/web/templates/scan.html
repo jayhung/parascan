@@ -550,6 +550,10 @@
             background: #334155;
         }
 
+        .print-only-history {
+            display: none;
+        }
+
         @media print {
             body {
                 background: white;
@@ -570,6 +574,10 @@
             #tab-diagnostics,
             .no-print {
                 display: none !important;
+            }
+
+            .print-only-history {
+                display: block !important;
             }
 
             #tab-findings {
@@ -813,14 +821,15 @@
         </div>
         {% endif %}
 
+        <!-- print-only request history (hidden on screen, visible in PDF export) -->
+        <div class="print-only-history">
         {% if scan_requests %}
         <h2>Request History</h2>
         <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:0.75rem;">
             {% if request_count > scan_requests|length %}
             Showing first {{ scan_requests|length }} of {{ request_count }} requests.
             {% endif %}
-            Full request/response history available in JSON export:
-            <a href="/scan/{{ scan.id }}/json">/scan/{{ scan.id }}/json</a>
+            Full request/response history available in JSON export.
             {% if soft404_summary %}
             <br>
             <span style="color:#60a5fa;">Note:</span> Soft-404 detection was active for this scan.
@@ -858,6 +867,7 @@
             No request history for this scan. Run without <code>--findings-only</code> to capture the full audit trail.
         </p>
         {% endif %}
+        </div>
 
         <div class="export-links">
             <button class="no-print" onclick="window.print()">Download PDF</button>
