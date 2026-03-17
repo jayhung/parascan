@@ -94,6 +94,10 @@ README.md
 LICENSE
 ```
 
+## Git Policy
+
+- **Never commit or push on behalf of the user.** Only stage, commit, or push when the user explicitly runs those commands themselves. The user manages all git operations.
+
 ## Coding Conventions
 
 ### Python
