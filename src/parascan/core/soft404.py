@@ -25,12 +25,35 @@ def _body_hash(text: str) -> str:
     return hashlib.sha256(text.strip().encode()).hexdigest()
 
 
-def check_soft_404(baselines_json: str | None, status_code: int | None, body: str | None) -> bool:
+def _is_base_url(url: str, target_url: str) -> bool:
+    """check if url is the target's base URL (with or without trailing slash)."""
+    from urllib.parse import urlparse
+
+    req = urlparse(url)
+    target = urlparse(target_url)
+    return (
+        req.scheme == target.scheme
+        and req.netloc == target.netloc
+        and req.path.rstrip("/") == target.path.rstrip("/")
+    )
+
+
+def check_soft_404(
+    baselines_json: str | None,
+    status_code: int | None,
+    body: str | None,
+    url: str | None = None,
+    target_url: str | None = None,
+) -> bool:
     """pure function to check a stored response against persisted baselines.
 
     Used at display time to retroactively tag request history rows.
+    The target's base URL is always exempt — it's a real page even though
+    SPAs serve the same shell for all routes.
     """
     if not baselines_json or body is None or body == "<binary>" or status_code is None:
+        return False
+    if url and target_url and _is_base_url(url, target_url):
         return False
     try:
         baselines = json.loads(baselines_json)
