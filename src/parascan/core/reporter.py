@@ -12,7 +12,8 @@ from parascan.core.state import get_all_scans, get_findings_for_scan
 
 async def generate_json_report(scan_id: int) -> str:
     """generate a JSON report for a scan, including audit log."""
-    from parascan.core.state import get_session, get_scan_requests
+    from parascan.core.soft404 import check_soft_404
+    from parascan.core.state import get_session, get_scan_requests, get_scan_events
     from parascan.core.db import Scan
     from sqlalchemy import select
 
@@ -26,6 +27,11 @@ async def generate_json_report(scan_id: int) -> str:
 
     findings = await get_findings_for_scan(scan_id)
     requests = await get_scan_requests(scan_id)
+
+    # load soft-404 baselines for per-request tagging
+    events = await get_scan_events(scan_id)
+    soft404_events = [e for e in events if e.category == "soft404"]
+    baselines = soft404_events[0].detail if soft404_events else None
 
     report: dict[str, Any] = {
         "scan": {
@@ -69,6 +75,7 @@ async def generate_json_report(scan_id: int) -> str:
                 "status_code": r.status_code,
                 "duration_ms": r.duration_ms,
                 "finding_id": r.finding_id,
+                "is_soft_404": check_soft_404(baselines, r.status_code, r.response_body),
             }
             for r in requests
         ],
@@ -99,7 +106,10 @@ SOC2_REMEDIATION_TIMELINES = {
 async def generate_html_report(scan_id: int) -> str:
     """generate a unified standalone HTML report with executive summary,
     methodology, findings by severity, and SOC 2 criteria summary."""
-    from parascan.core.state import get_session, get_scan_request_stats, get_scan_events
+    from parascan.core.soft404 import check_soft_404
+    from parascan.core.state import (
+        get_session, get_scan_request_stats, get_scan_events, get_scan_requests,
+    )
     from parascan.core.db import Scan
     from sqlalchemy import select
 
@@ -116,6 +126,17 @@ async def generate_html_report(scan_id: int) -> str:
     by_module = _count_by_module(findings)
     request_stats = await get_scan_request_stats(scan_id)
     scan_events = await get_scan_events(scan_id)
+
+    # compute soft-404 count for stats
+    soft404_events = [e for e in scan_events if e.category == "soft404"]
+    baselines = soft404_events[0].detail if soft404_events else None
+    soft404_count = 0
+    if baselines:
+        all_requests = await get_scan_requests(scan_id)
+        soft404_count = sum(
+            1 for r in all_requests
+            if check_soft_404(baselines, r.status_code, r.response_body)
+        )
 
     severity_colors = {
         "critical": "#dc2626",
@@ -364,7 +385,7 @@ async def generate_html_report(scan_id: int) -> str:
 
     {findings_html if findings_html else '<p class="no-findings">No vulnerabilities detected.</p>'}
 
-    {_build_scan_stats_html(request_stats, scan)}
+    {_build_scan_stats_html(request_stats, scan, soft404_count=soft404_count)}
 
     {_build_diagnostics_html(scan_events)}
 
@@ -383,7 +404,7 @@ async def generate_html_report(scan_id: int) -> str:
 generate_compliance_report = generate_html_report
 
 
-def _build_scan_stats_html(stats: dict, scan: Any) -> str:
+def _build_scan_stats_html(stats: dict, scan: Any, soft404_count: int = 0) -> str:
     """build scan statistics section for the HTML report."""
     total = stats.get("total", 0)
     if total == 0:
@@ -417,6 +438,11 @@ def _build_scan_stats_html(stats: dict, scan: Any) -> str:
                 f'<span style="color:{color};font-weight:600;margin-right:1rem;">'
                 f'{key}: {count}</span>'
             )
+    if soft404_count:
+        status_items += (
+            f'<span style="color:#a78bfa;font-weight:600;margin-right:1rem;">'
+            f'soft-404: {soft404_count}</span>'
+        )
 
     return f"""
     <h2>Scan Statistics</h2>

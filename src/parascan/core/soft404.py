@@ -8,6 +8,7 @@ paths before scanning and building a fingerprint of the catch-all response.
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import uuid
 
@@ -22,6 +23,37 @@ _LENGTH_TOLERANCE = 0.05
 def _body_hash(text: str) -> str:
     """sha-256 of whitespace-stripped body for stable comparison."""
     return hashlib.sha256(text.strip().encode()).hexdigest()
+
+
+def check_soft_404(baselines_json: str | None, status_code: int | None, body: str | None) -> bool:
+    """pure function to check a stored response against persisted baselines.
+
+    Used at display time to retroactively tag request history rows.
+    """
+    if not baselines_json or body is None or body == "<binary>" or status_code is None:
+        return False
+    try:
+        baselines = json.loads(baselines_json)
+    except (json.JSONDecodeError, TypeError):
+        return False
+    if not baselines:
+        return False
+
+    resp_hash = _body_hash(body)
+    resp_len = len(body)
+
+    for b in baselines:
+        if status_code != b.get("status"):
+            continue
+        if resp_hash == b.get("hash"):
+            return True
+        base_len = b.get("length", 0)
+        if base_len > 0:
+            ratio = abs(resp_len - base_len) / base_len
+            if ratio <= _LENGTH_TOLERANCE:
+                return True
+
+    return False
 
 
 class Soft404Detector:
@@ -60,6 +92,14 @@ class Soft404Detector:
             "soft-404 calibrated: status=%s, body lengths=%s",
             statuses, lengths,
         )
+
+    @property
+    def baselines_json(self) -> str:
+        """serialize baselines as JSON for persistence in scan events."""
+        return json.dumps([
+            {"status": s, "length": l, "hash": h}
+            for s, l, h in self._baselines
+        ])
 
     @property
     def summary(self) -> str:

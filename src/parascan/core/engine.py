@@ -353,6 +353,7 @@ async def run_scan(
                 await save_scan_event(
                     scan_id, "info", "soft404",
                     soft404.summary,
+                    detail=soft404.baselines_json,
                 )
 
             # discover endpoints
