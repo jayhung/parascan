@@ -2,6 +2,10 @@
 
 A modular web application penetration testing tool for REST and GraphQL APIs.
 
+The name `parascan` is a nod to Yahoo's information security team, The Paranoids — a team that made the case that paranoia is a form of caring.
+
+As a former Yahoo, I love the premise: that being a little paranoid isn't a flaw, it's just what happens when you actually care about what you're protecting. Good security starts with the question "okay but what if this is broken?" and doesn't stop asking until it runs out of things to poke at. That's the energy this tool tries to bring.
+
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)
 
