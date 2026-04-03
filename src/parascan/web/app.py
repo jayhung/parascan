@@ -5,7 +5,7 @@ from __future__ import annotations
 import pathlib
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -133,6 +133,25 @@ async def scan_json(scan_id: int):
 
     report = await generate_json_report(scan_id)
     return JSONResponse(content=json.loads(report))
+
+
+@app.get("/scan/{scan_id}/pdf")
+async def scan_pdf(scan_id: int):
+    """PDF export endpoint."""
+    from parascan.core.reporter import generate_pdf_report
+
+    try:
+        pdf_bytes = await generate_pdf_report(scan_id)
+    except ValueError:
+        return HTMLResponse("<h1>Scan not found</h1>", status_code=404)
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="parascan-scan-{scan_id}.pdf"',
+        },
+    )
 
 
 @app.get("/scan/{scan_id}/report")
