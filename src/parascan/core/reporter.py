@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import datetime
+from io import BytesIO
 from typing import Any
 
 from parascan.core.db import Severity
@@ -404,6 +405,107 @@ async def generate_html_report(scan_id: int) -> str:
 </html>"""
 
     return html
+
+
+async def generate_pdf_report(scan_id: int) -> bytes:
+    """generate a PDF report for a scan."""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    from parascan.core.db import Scan
+    from parascan.core.state import get_session
+    from sqlalchemy import select
+
+    session = await get_session()
+    result = await session.execute(select(Scan).where(Scan.id == scan_id))
+    scan = result.scalar_one_or_none()
+    await session.close()
+
+    if not scan:
+        raise ValueError("scan not found")
+
+    findings = await get_findings_for_scan(scan_id)
+    severity_counts = _count_by_severity(findings)
+    by_module = _count_by_module(findings)
+
+    buf = BytesIO()
+    pdf = canvas.Canvas(buf, pagesize=letter)
+    width, height = letter
+    margin = 50
+    y = height - margin
+    line_height = 14
+    body_font = "Helvetica"
+    bold_font = "Helvetica-Bold"
+
+    def write_line(text: str, bold: bool = False, size: int = 10) -> None:
+        nonlocal y
+        if y < margin:
+            pdf.showPage()
+            y = height - margin
+        pdf.setFont(bold_font if bold else body_font, size)
+        pdf.drawString(margin, y, text[:130])
+        y -= line_height
+
+    def write_wrapped(label: str, text: str) -> None:
+        nonlocal y
+        value = text.strip()
+        if not value:
+            return
+        chunks = [value[i:i + 120] for i in range(0, len(value), 120)]
+        write_line(f"{label}: {chunks[0]}")
+        for chunk in chunks[1:]:
+            write_line(f"  {chunk}")
+
+    pdf.setTitle(f"parascan-report-scan-{scan_id}")
+    write_line("parascan Report", bold=True, size=16)
+    y -= 4
+    write_line(f"Scan ID: {scan.id}", bold=True)
+    write_line(f"Target: {scan.target_url}")
+    write_line(f"Status: {scan.status}")
+    write_line(
+        "Started: "
+        + (scan.started_at.strftime("%Y-%m-%d %H:%M:%S UTC") if scan.started_at else "N/A")
+    )
+    write_line(
+        "Finished: "
+        + (scan.finished_at.strftime("%Y-%m-%d %H:%M:%S UTC") if scan.finished_at else "N/A")
+    )
+    write_line(f"Endpoints: {scan.scanned_endpoints}/{scan.total_endpoints}")
+    y -= 8
+
+    write_line("Summary", bold=True, size=12)
+    write_line(f"Total findings: {len(findings)}")
+    for sev in ("critical", "high", "medium", "low", "info"):
+        count = severity_counts.get(sev, 0)
+        if count:
+            write_line(f"{sev.upper()}: {count}")
+    if by_module:
+        write_line("By module:")
+        for mod, count in sorted(by_module.items()):
+            write_line(f"- {mod}: {count}")
+    y -= 8
+
+    write_line("Findings", bold=True, size=12)
+    if not findings:
+        write_line("No vulnerabilities detected.")
+    else:
+        for idx, finding in enumerate(findings, 1):
+            write_line(
+                f"{idx}. [{finding.severity.upper()}] {finding.title}",
+                bold=True,
+            )
+            write_wrapped("Module", finding.module)
+            write_wrapped("Description", finding.description)
+            if finding.evidence:
+                write_wrapped("Evidence", finding.evidence)
+            if finding.remediation:
+                write_wrapped("Remediation", finding.remediation)
+            if finding.soc2_criteria:
+                write_wrapped("SOC2", finding.soc2_criteria)
+            y -= 4
+
+    pdf.showPage()
+    pdf.save()
+    return buf.getvalue()
 
 
 # keep as alias for backward compatibility
